@@ -199,6 +199,28 @@ export const THEMES: Theme[] = [
       brightBlue: "#b0a0ff", brightMagenta: "#ffabf3", brightCyan: "#7ffcfc", brightWhite: "#ffffff",
     },
   },
+  {
+    // Ported from esper-theme/starbase — an LCARS-style starship console.
+    id: "starbase",
+    name: "Starbase",
+    group: "Retro",
+    colors: {
+      bg0: "#000000", bg1: "#000000", bg2: "#0b0b0b", bg3: "#161616", bg4: "#20201f",
+      line: "#3a2a1e", lineSoft: "#1e150d",
+      text0: "#ffe8d6", text1: "#ffab7d", text2: "#cf9270", text3: "#94705a",
+      accent: "#ff9966", accent2: "#cc99cc", ok: "#66cc66", warn: "#ffcc00", danger: "#cc4444",
+      radius: 18,
+    },
+    fontUi: '"Antonio", "Oswald", "Arial Narrow", system-ui, sans-serif',
+    terminal: {
+      background: "#000000", foreground: "#ff9966", cursor: "#ffcc00", cursorAccent: "#000000",
+      selectionBackground: "#5a3a1a", selectionForeground: "#ffe8d6",
+      black: "#000000", red: "#cc4444", green: "#66cc66", yellow: "#ffcc00",
+      blue: "#6699cc", magenta: "#cc6699", cyan: "#99ccff", white: "#ffcc99",
+      brightBlack: "#8a6a54", brightRed: "#ff6a6a", brightGreen: "#99ff99", brightYellow: "#ffdd44",
+      brightBlue: "#8fbfff", brightMagenta: "#cc99cc", brightCyan: "#bfe4ff", brightWhite: "#ffe8d6",
+    },
+  },
 ];
 
 let active: Theme = THEMES[0];

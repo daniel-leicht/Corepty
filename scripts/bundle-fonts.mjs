@@ -6,7 +6,7 @@ import { writeFileSync, mkdirSync } from "node:fs";
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36";
 const CSS_URL =
-  "https://fonts.googleapis.com/css2?family=VT323&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap";
+  "https://fonts.googleapis.com/css2?family=VT323&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=JetBrains+Mono:wght@400;600&family=Antonio:wght@400;600;700&display=swap";
 const KEEP = new Set(["latin", "latin-ext"]);
 const OUT_DIR = new URL("../src/assets/fonts/", import.meta.url);
 const FONTS_CSS = new URL("../src/fonts.css", import.meta.url);

@@ -27,13 +27,13 @@ SSH with passwords or private keys.
   drag-and-drop to reorganize, inline rename, context menus, and per-folder counts.
 - **Reconnect** — when a session drops or exits, an in-terminal overlay offers a
   one-click reconnect (reusing the same tab); `Ctrl+Shift+R` reconnects the active tab.
-- **Themes** — seven built-in themes, switched live from Settings: CorePTY Dark /
-  Light, Dracula, Nord, Solarized Dark, and two retro themes ported from the
-  *esper-theme* collection — **BBS** (VT323 CRT with scanlines + phosphor glow) and
-  **Synapse** (synthwave neon on a violet void, cyber-grid + scanlines). Each restyles
-  the whole app — UI palette, terminal ANSI colors, fonts, CRT effects, and even
-  component treatments (BBS's double-line box-panels and cyan-fill controls; Synapse's
-  sharp neon-glow borders and uppercase mono labels).
+- **Themes** — eight built-in themes, switched live from Settings: CorePTY Dark /
+  Light, Dracula, Nord, Solarized Dark, and three retro themes ported from the
+  *esper-theme* collection — **BBS** (VT323 CRT with scanlines, phosphor glow, and
+  box-drawing panel corners), **Synapse** (synthwave neon on a violet void, cyber-grid
+  + scanlines), and **Starbase** (an LCARS starship console — orange-on-black, condensed
+  all-caps Antonio, pill-shaped controls). Each restyles the whole app — UI palette,
+  terminal ANSI colors, fonts (self-hosted, offline), effects, and component treatments.
 - **Settings** — live-applied font size/family, cursor style/blink, scrollback, default
   shell, bell, copy-on-select, and right-click behavior, persisted to `settings.json`.
 - **Slick dark UI** — session sidebar with quick-launch, tabbed terminals with live

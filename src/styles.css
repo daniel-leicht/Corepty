@@ -1644,3 +1644,41 @@ html.theme-bbs .modal__foot::before {
   bottom: -9px;
   left: -3px;
 }
+
+/* ---- Starbase (LCARS): all-caps voice, pill shapes, orange fills ---- */
+html.theme-starbase
+  :is(.side-group__label, .status-kind, .btn, .ghost-btn, .tab__title, .quick__label,
+    .field__label, .brand__name, .seg button, .tree-folder__name, .settings-section,
+    .pop__label, .theme-group) {
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+html.theme-starbase
+  :is(.tab, .btn, .ghost-btn, .status-kind, .seg, .seg button, .search-bar, .tab-add,
+    .side-add, .modal__close, .tree-act, .quick__go) {
+  border-radius: 999px;
+}
+html.theme-starbase :is(.modal, .pop, .ctx-menu, .toast, .quick__icon, .tree-conn__icon, .pop__icon) {
+  border-radius: 20px;
+}
+html.theme-starbase .tab.is-active {
+  background: var(--accent);
+  color: #180c02;
+}
+html.theme-starbase .tab.is-active::after {
+  display: none;
+}
+html.theme-starbase .btn.primary,
+html.theme-starbase .seg button.is-active,
+html.theme-starbase .status-kind {
+  background: var(--accent);
+  color: #180c02;
+  border-color: var(--accent);
+}
+html.theme-starbase .btn.primary:hover {
+  filter: brightness(1.08);
+  box-shadow: none;
+}
+html.theme-starbase .side-group__label {
+  color: var(--warn);
+}
