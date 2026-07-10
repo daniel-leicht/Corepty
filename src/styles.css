@@ -2658,3 +2658,15 @@ html.theme-starbase .win-btn .icon {
   width: 13px;
   height: 13px;
 }
+
+/* The title-bar elbow is the app mark now — drop the duplicate sidebar brand and
+   widen the elbow to cap the sidebar rail. */
+html.theme-starbase .brand {
+  display: none;
+}
+html.theme-starbase .win-titlebar__label {
+  min-width: var(--sidebar-w);
+}
+html.theme-starbase .side-scroll {
+  padding-top: 10px;
+}
