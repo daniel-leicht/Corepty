@@ -43,7 +43,7 @@ export function termOptions(): ITerminalOptions {
     fontFamily: current.fontFamily.trim() || t.fontMono || DEFAULT_MONO_FONT,
     fontSize: current.fontSize,
     lineHeight: current.lineHeight,
-    cursorStyle: current.cursorStyle,
+    cursorStyle: t.cursor ?? current.cursorStyle,
     cursorBlink: current.cursorBlink,
     cursorWidth: 2,
     scrollback: current.scrollback,

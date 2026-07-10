@@ -39,6 +39,8 @@ export interface Theme {
   terminal: ITheme;
   fontUi?: string;
   fontMono?: string;
+  /** Preferred terminal cursor style; overrides the user setting when set. */
+  cursor?: "bar" | "block" | "underline";
   effects?: ThemeEffects;
   gridColor?: string;
   glowColor?: string;
@@ -151,13 +153,14 @@ export const THEMES: Theme[] = [
     group: "Retro",
     colors: {
       bg0: "#030408", bg1: "#05060a", bg2: "#080a12", bg3: "#0d1220", bg4: "#131a2c",
-      line: "#16323d", lineSoft: "#0e2028",
+      line: "#1f7e96", lineSoft: "#123c47",
       text0: "#eaf2f6", text1: "#9fb0bd", text2: "#7f909d", text3: "#586573",
       accent: "#3fe0ff", accent2: "#5b76ff", ok: "#4dff84", warn: "#ffe14d", danger: "#ff5d5d",
       radius: 0,
     },
     fontUi: '"VT323", "Cascadia Mono", "Consolas", ui-monospace, monospace',
     fontMono: '"VT323", "Cascadia Mono", "Consolas", ui-monospace, monospace',
+    cursor: "block",
     effects: { scanlines: true, flicker: true, glow: true },
     glowColor: "rgba(120, 200, 220, 0.5)",
     terminal: {

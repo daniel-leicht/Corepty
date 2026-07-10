@@ -1,3 +1,4 @@
+import "./fonts.css";
 import "./styles.css";
 import "@xterm/xterm/css/xterm.css";
 import { App } from "./app";

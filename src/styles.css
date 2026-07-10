@@ -960,6 +960,10 @@ button {
   color: var(--text-0);
   box-shadow: var(--shadow-1);
 }
+.seg.is-locked {
+  opacity: 0.5;
+  pointer-events: none;
+}
 
 .btn {
   display: inline-flex;
@@ -1448,18 +1452,12 @@ html.fx-glow .boot__title {
    Per-theme component treatments
    ========================================================================== */
 
-/* Square off components that hard-code a radius (retro themes). */
-html.theme-bbs
-  :is(.tab, .btn, .ghost-btn, .modal, .pop, .search-bar, .toast, .quick__icon,
-    .tree-conn__icon, .pop__icon, .brand__mark, .tab__close, .tab-add, .side-add,
-    .tree-act, .status-kind, .seg, .seg button, .check input, .quick__btn,
-    .field input, .file-row input, .select),
-html.theme-synapse
-  :is(.tab, .btn, .ghost-btn, .modal, .pop, .search-bar, .toast, .quick__icon,
-    .tree-conn__icon, .pop__icon, .brand__mark, .tab__close, .tab-add, .side-add,
-    .tree-act, .status-kind, .seg, .seg button, .check input, .quick__btn,
-    .field input, .file-row input, .select) {
-  border-radius: 0;
+/* Retro themes are fully square — no rounded corners anywhere (CRT / brutalist). */
+html.theme-bbs *,
+html.theme-synapse *,
+html.theme-bbs ::-webkit-scrollbar-thumb,
+html.theme-synapse ::-webkit-scrollbar-thumb {
+  border-radius: 0 !important;
 }
 
 /* Shared: list-row hover marker (a colored inset bar, ANSI/menu-selection style). */

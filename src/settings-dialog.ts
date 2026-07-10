@@ -1,7 +1,7 @@
 // Settings modal. Changes apply live and persist immediately.
 import { icon } from "./icons";
 import { current, DEFAULTS, persistSettings, setTheme, type Settings } from "./settings";
-import { THEMES } from "./themes";
+import { activeTheme, THEMES } from "./themes";
 
 export class SettingsDialog {
   private el: HTMLElement | null = null;
@@ -33,6 +33,9 @@ export class SettingsDialog {
 
   private template(): string {
     const s = current;
+    const themeCursor = activeTheme().cursor;
+    const effCursor = themeCursor ?? s.cursorStyle;
+    const cursorHint = themeCursor ? ` <span class="muted">· ${themeCursor} (theme)</span>` : "";
     return `
       <div class="modal modal--wide" role="dialog" aria-modal="true">
         <div class="modal__head">
@@ -60,8 +63,8 @@ export class SettingsDialog {
           </div>
           <div class="grid2">
             <div class="field">
-              <span class="field__label">Cursor</span>
-              <div class="seg" data-role="cursorStyle">${seg(["bar", "block", "underline"], s.cursorStyle)}</div>
+              <span class="field__label">Cursor${cursorHint}</span>
+              <div class="seg ${themeCursor ? "is-locked" : ""}" data-role="cursorStyle">${seg(["bar", "block", "underline"], effCursor)}</div>
             </div>
             <label class="check cursor-blink">
               <input type="checkbox" data-role="cursorBlink" ${s.cursorBlink ? "checked" : ""} />
@@ -144,10 +147,9 @@ export class SettingsDialog {
     // theme cards
     root.querySelectorAll<HTMLButtonElement>(".theme-card").forEach((card) => {
       card.addEventListener("click", () => {
-        root.querySelectorAll(".theme-card").forEach((c) => c.classList.remove("is-active"));
-        card.classList.add("is-active");
         setTheme(card.dataset.theme!);
         this.onChange();
+        this.open(); // re-open so the modal restyles + the cursor lock re-syncs
       });
     });
 
