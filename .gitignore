@@ -1,0 +1,25 @@
+# Node / frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# Generated icon source (icons themselves are committed)
+app-icon.png
+
+# Dev/verification artifacts
+dev.log
+_shot*.png
+_probe.png
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.log

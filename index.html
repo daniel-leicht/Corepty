@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en" class="theme-dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CorePTY</title>
+    <style>
+      /* Paint dark immediately to avoid a white flash before CSS loads. */
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0e0f13;
+        color: #e6e8ef;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

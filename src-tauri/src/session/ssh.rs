@@ -1,0 +1,295 @@
+// SSH sessions via `russh` (pure-Rust SSH). Supports password and public-key
+// auth, host-key verification against ~/.ssh/known_hosts (trust-on-first-use),
+// an interactive PTY + shell, live resize, and streamed I/O.
+
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
+
+use russh::client::{self, AuthResult, Handle};
+use russh::keys::known_hosts::{check_known_hosts_path, learn_known_hosts_path};
+use russh::keys::{load_secret_key, ssh_key, Error as KeysError, PrivateKeyWithHashAlg};
+use russh::ChannelMsg;
+use serde::Deserialize;
+use tauri::{AppHandle, Manager};
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
+use uuid::Uuid;
+
+use super::{
+    emit_data, emit_exit, emit_status, SessionInfo, SessionInput, SessionKind, SessionManager,
+};
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SshOptions {
+    #[serde(default)]
+    pub id: Option<String>,
+    pub host: String,
+    #[serde(default = "default_port")]
+    pub port: u16,
+    pub username: String,
+    pub auth: SshAuth,
+    #[serde(default = "default_cols")]
+    pub cols: u16,
+    #[serde(default = "default_rows")]
+    pub rows: u16,
+    #[serde(default)]
+    pub title: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum SshAuth {
+    Password {
+        password: String,
+    },
+    Key {
+        #[serde(rename = "keyPath")]
+        path: String,
+        #[serde(default)]
+        passphrase: Option<String>,
+    },
+}
+
+fn default_port() -> u16 {
+    22
+}
+fn default_cols() -> u16 {
+    80
+}
+fn default_rows() -> u16 {
+    24
+}
+
+/// Synchronous entry point: registers the session, kicks off the async
+/// connect + shell driver, and returns immediately so the UI shows a
+/// "connecting" tab. All progress/errors surface via events.
+pub fn connect(
+    app: AppHandle,
+    manager: &SessionManager,
+    opts: SshOptions,
+) -> Result<SessionInfo, String> {
+    let id = opts
+        .id
+        .clone()
+        .unwrap_or_else(|| Uuid::new_v4().to_string());
+    let title = opts
+        .title
+        .clone()
+        .unwrap_or_else(|| format!("{}@{}", opts.username, opts.host));
+    let info = SessionInfo {
+        id: id.clone(),
+        kind: SessionKind::Ssh,
+        title,
+    };
+
+    let (tx, rx) = unbounded_channel::<SessionInput>();
+    manager.register(info.clone(), tx);
+    emit_status(&app, &id, "connecting", Some(format!("{}:{}", opts.host, opts.port)));
+
+    let app_task = app.clone();
+    let id_task = id.clone();
+    tauri::async_runtime::spawn(async move {
+        match run_session(app_task.clone(), id_task.clone(), opts, rx).await {
+            Ok(code) => emit_exit(&app_task, &id_task, code, None),
+            Err(e) => {
+                emit_status(&app_task, &id_task, "error", Some(e.clone()));
+                emit_exit(&app_task, &id_task, None, Some(e));
+            }
+        }
+        app_task.state::<SessionManager>().remove(&id_task);
+    });
+
+    Ok(info)
+}
+
+enum Action {
+    Read(Option<ChannelMsg>),
+    Input(Option<SessionInput>),
+}
+
+async fn run_session(
+    app: AppHandle,
+    id: String,
+    opts: SshOptions,
+    mut rx: UnboundedReceiver<SessionInput>,
+) -> Result<Option<i32>, String> {
+    let config = Arc::new(client::Config::default());
+    let handler = Client {
+        app: app.clone(),
+        id: id.clone(),
+        host: opts.host.clone(),
+        port: opts.port,
+    };
+
+    let connect_fut = client::connect(config, (opts.host.as_str(), opts.port), handler);
+    let mut session = tokio::time::timeout(Duration::from_secs(20), connect_fut)
+        .await
+        .map_err(|_| "connection timed out".to_string())?
+        .map_err(|e| format!("could not connect: {e}"))?;
+
+    authenticate(&mut session, &opts).await?;
+
+    let channel = session
+        .channel_open_session()
+        .await
+        .map_err(|e| format!("failed to open channel: {e}"))?;
+    channel
+        .request_pty(
+            false,
+            "xterm-256color",
+            opts.cols as u32,
+            opts.rows as u32,
+            0,
+            0,
+            &[],
+        )
+        .await
+        .map_err(|e| format!("pty request failed: {e}"))?;
+    channel
+        .request_shell(true)
+        .await
+        .map_err(|e| format!("shell request failed: {e}"))?;
+
+    emit_status(&app, &id, "connected", None);
+
+    let mut channel = channel;
+    let mut exit_code: Option<i32> = None;
+    loop {
+        let action = tokio::select! {
+            msg = channel.wait() => Action::Read(msg),
+            input = rx.recv() => Action::Input(input),
+        };
+        match action {
+            Action::Read(Some(ChannelMsg::Data { data })) => emit_data(&app, &id, &data[..]),
+            Action::Read(Some(ChannelMsg::ExtendedData { data, .. })) => {
+                emit_data(&app, &id, &data[..])
+            }
+            Action::Read(Some(ChannelMsg::ExitStatus { exit_status })) => {
+                exit_code = Some(exit_status as i32);
+            }
+            Action::Read(Some(ChannelMsg::Eof))
+            | Action::Read(Some(ChannelMsg::Close))
+            | Action::Read(None) => break,
+            Action::Read(_) => {}
+            Action::Input(Some(SessionInput::Data(bytes))) => {
+                if channel.data(&bytes[..]).await.is_err() {
+                    break;
+                }
+            }
+            Action::Input(Some(SessionInput::Resize { cols, rows })) => {
+                let _ = channel
+                    .window_change(cols as u32, rows as u32, 0, 0)
+                    .await;
+            }
+            Action::Input(Some(SessionInput::Close)) | Action::Input(None) => break,
+        }
+    }
+
+    let _ = channel.eof().await;
+    Ok(exit_code)
+}
+
+async fn authenticate(session: &mut Handle<Client>, opts: &SshOptions) -> Result<(), String> {
+    match &opts.auth {
+        SshAuth::Password { password } => {
+            let result = session
+                .authenticate_password(opts.username.as_str(), password.as_str())
+                .await
+                .map_err(|e| format!("authentication error: {e}"))?;
+            if !matches!(result, AuthResult::Success) {
+                return Err("authentication failed — check the username and password".into());
+            }
+        }
+        SshAuth::Key { path, passphrase } => {
+            let key = load_secret_key(path, passphrase.as_deref())
+                .map_err(|e| format!("could not load private key: {e}"))?;
+            let hash_alg = session
+                .best_supported_rsa_hash()
+                .await
+                .ok()
+                .flatten()
+                .flatten();
+            let key = PrivateKeyWithHashAlg::new(Arc::new(key), hash_alg);
+            let result = session
+                .authenticate_publickey(opts.username.as_str(), key)
+                .await
+                .map_err(|e| format!("authentication error: {e}"))?;
+            if !matches!(result, AuthResult::Success) {
+                return Err("key rejected by server — is the public key installed?".into());
+            }
+        }
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Host-key verification (known_hosts, trust-on-first-use)
+// ---------------------------------------------------------------------------
+
+struct Client {
+    app: AppHandle,
+    id: String,
+    host: String,
+    port: u16,
+}
+
+impl client::Handler for Client {
+    type Error = russh::Error;
+
+    async fn check_server_key(
+        &mut self,
+        server_public_key: &ssh_key::PublicKey,
+    ) -> Result<bool, Self::Error> {
+        Ok(verify_host_key(
+            &self.app,
+            &self.id,
+            &self.host,
+            self.port,
+            server_public_key,
+        ))
+    }
+}
+
+fn verify_host_key(
+    app: &AppHandle,
+    id: &str,
+    host: &str,
+    port: u16,
+    key: &ssh_key::PublicKey,
+) -> bool {
+    let Some(path) = known_hosts_file() else {
+        return true;
+    };
+    match check_known_hosts_path(host, port, key, &path) {
+        Ok(true) => true,
+        Ok(false) => {
+            let _ = learn_known_hosts_path(host, port, key, &path);
+            emit_status(app, id, "connecting", Some("new host key trusted".into()));
+            true
+        }
+        Err(KeysError::KeyChanged { .. }) => {
+            emit_status(
+                app,
+                id,
+                "error",
+                Some("host key has CHANGED since last connect — refused (possible MITM)".into()),
+            );
+            false
+        }
+        Err(_) => {
+            let _ = learn_known_hosts_path(host, port, key, &path);
+            true
+        }
+    }
+}
+
+fn home_dir() -> Option<PathBuf> {
+    std::env::var_os("USERPROFILE")
+        .or_else(|| std::env::var_os("HOME"))
+        .map(PathBuf::from)
+}
+
+fn known_hosts_file() -> Option<PathBuf> {
+    home_dir().map(|h| h.join(".ssh").join("known_hosts"))
+}
