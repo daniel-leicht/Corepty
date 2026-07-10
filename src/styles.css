@@ -1460,153 +1460,254 @@ html.theme-synapse ::-webkit-scrollbar-thumb {
   border-radius: 0 !important;
 }
 
-/* Shared: list-row hover marker (a colored inset bar, ANSI/menu-selection style). */
-html.theme-bbs :is(.quick__btn, .tree-folder, .tree-conn, .pop__item, .ctx-item):hover,
-html.theme-synapse :is(.quick__btn, .tree-folder, .tree-conn, .pop__item, .ctx-item):hover {
-  background: var(--accent-soft);
-  box-shadow: inset 3px 0 0 var(--accent);
+/* ============================================================================
+   BBS — a 1990s ANSI bulletin board on a scanlined CRT.
+   Cyan-dim box borders, yellow panel titles, magenta gutter markers, inverse-
+   video menu selection, colored status-line segments, VT323 at chunky sizes.
+   ========================================================================== */
+html.theme-bbs {
+  --bbs-magenta: #ff67d4; /* hover marker / chromatic ghost */
+  --bbs-ink: #03121a; /* dark legend on solid cyan/yellow fills */
+  --bbs-field: #02030a; /* input wells / status line / screen void */
 }
 
-/* ---- BBS: square ANSI box-panels, cyan borders, yellow titles ---- */
-html.theme-bbs .side-group__label,
-html.theme-bbs .modal__title {
-  color: var(--warn);
+/* VT323 renders tiny — scale the chrome up (the source body is 19px) and turn
+   off smoothing for the crisp bitmap look, with a faint phosphor halo. */
+html.theme-bbs body {
+  font-size: 16px;
+  -webkit-font-smoothing: none;
+  text-shadow: 0 0 1px rgba(120, 200, 220, 0.25);
 }
+html.theme-bbs
+  :is(.quick__label, .tree-folder__name, .tree-conn__name, .conn__name, .pop__name,
+    .tab__title, .ctx-item, .field input, .file-row input, .select, .btn,
+    .search-bar__input, .tree-rename, .term-overlay__msg) {
+  font-size: 16px;
+}
+html.theme-bbs
+  :is(.quick__hint, .tree-conn__sub, .conn__sub, .side-group__label, .status-os,
+    .field__label, .empty-hint p, .side-footer__btn, .theme-card__name, .check,
+    .seg button, .ghost-btn, .toast) {
+  font-size: 14px;
+}
+html.theme-bbs
+  :is(.pop__label, .pop__hint, .tree-folder__count, .theme-group, .settings-section,
+    .side-footer__ver, .status-kind) {
+  font-size: 13px;
+}
+html.theme-bbs .modal__title {
+  font-size: 19px;
+  color: var(--warn);
+  letter-spacing: 1px;
+}
+
+html.theme-bbs ::selection {
+  background: var(--accent);
+  color: var(--bbs-ink);
+  text-shadow: none;
+}
+html.theme-bbs ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+html.theme-bbs ::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border: 3px solid var(--bg-1);
+  background-clip: padding-box;
+}
+html.theme-bbs ::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+  background-clip: padding-box;
+}
+html.theme-bbs .sidebar {
+  border-right: 2px solid var(--line);
+}
+
+/* brand: ANSI-art logo — cyan with a magenta ghost offset (chromatic bleed) */
 html.theme-bbs .brand__mark {
+  background: var(--bbs-field);
+  border: 2px solid var(--accent);
+  color: var(--accent);
   box-shadow: none;
 }
+html.theme-bbs .brand__name {
+  font-size: 20px;
+  letter-spacing: 1px;
+  color: var(--accent);
+  text-shadow: 2px 0 0 rgba(255, 103, 212, 0.5), 0 0 10px rgba(63, 224, 255, 0.4);
+}
+html.theme-bbs .brand__name span {
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+  color: var(--warn);
+}
+
+/* sidebar section headers: the boxed yellow menu-section strip */
+html.theme-bbs .side-group__label {
+  color: var(--warn);
+  background: rgba(63, 224, 255, 0.06);
+  border: 1px solid var(--line-soft);
+  padding: 3px 8px;
+  letter-spacing: 1px;
+}
+
+/* main-menu commands: inverse-video selection (solid cyan, dark legend) */
+html.theme-bbs .quick__icon {
+  background: var(--bbs-field);
+  border-color: var(--line-soft);
+  color: var(--accent);
+}
+html.theme-bbs .quick__btn:hover {
+  background: var(--accent);
+}
+html.theme-bbs .quick__btn:hover :is(.quick__label, .quick__hint, .quick__go) {
+  color: var(--bbs-ink);
+  text-shadow: none;
+}
+html.theme-bbs .quick__btn:hover .quick__icon {
+  background: transparent;
+  border-color: rgba(3, 18, 26, 0.45);
+  color: var(--bbs-ink);
+}
+
+/* list rows: soft cyan wash + the magenta gutter marker (ANSI table hover) */
+html.theme-bbs :is(.tree-folder, .tree-conn, .pop__item, .ctx-item):hover {
+  background: rgba(63, 224, 255, 0.08);
+  box-shadow: inset 3px 0 0 var(--bbs-magenta);
+}
+html.theme-bbs .ctx-item.danger:hover {
+  background: rgba(255, 93, 93, 0.1);
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+html.theme-bbs .pop__sep {
+  height: 0;
+  background: none;
+  border-top: 1px dashed var(--line-soft);
+}
+
+/* tabs: DOS tab strip — the active tab gets the cyan box + panel fill */
 html.theme-bbs .tab {
   border: 1px solid transparent;
 }
 html.theme-bbs .tab.is-active {
   border-color: var(--accent);
   color: var(--accent);
-  background: var(--bg-3);
+  background: rgba(10, 14, 26, 0.55);
 }
 html.theme-bbs .tab.is-active::after {
   display: none;
 }
-html.theme-bbs .tab__dot.connected,
+
+/* status line: colored segments with dark legends (node/user/clock blocks) */
+html.theme-bbs .statusbar {
+  background: var(--bbs-field);
+  font-size: 15px;
+}
+html.theme-bbs .status-title {
+  background: var(--accent-2);
+  color: #ffffff;
+  padding: 1px 10px;
+  font-weight: 400;
+  text-shadow: none;
+}
+html.theme-bbs .status-kind {
+  background: var(--accent);
+  color: var(--bbs-ink);
+  border-color: var(--accent);
+  padding: 1px 10px;
+  text-shadow: none;
+}
+html.theme-bbs .status-dims {
+  background: var(--warn);
+  color: #1a1303;
+  padding: 1px 10px;
+  text-shadow: none;
+}
+html.theme-bbs .status-kind:empty,
+html.theme-bbs .status-dims:empty {
+  display: none;
+}
+/* carrier light: the blinking block cursor, as a status LED */
 html.theme-bbs .status-dot.connected {
-  box-shadow: none;
+  box-shadow: 0 0 8px rgba(77, 255, 132, 0.5);
+  animation: bbs-carrier 1s steps(1) infinite;
+}
+@keyframes bbs-carrier {
+  50% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.theme-bbs .status-dot.connected {
+    animation: none;
+  }
+}
+
+/* buttons: outlined ANSI buttons; solid = cyan, flips to green on hover */
+html.theme-bbs :is(.btn.ghost, .ghost-btn) {
+  background: transparent;
+}
+html.theme-bbs :is(.btn.ghost, .ghost-btn):hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 html.theme-bbs .btn.primary,
 html.theme-bbs .seg button.is-active {
   background: var(--accent);
-  color: #03121a;
+  color: var(--bbs-ink);
   box-shadow: none;
+  text-shadow: none;
 }
 html.theme-bbs .btn.primary:hover {
   filter: none;
   background: var(--ok);
-  color: #03121a;
+  color: var(--bbs-ink);
   box-shadow: none;
 }
+
 /* popups / modals: double-line box border + hard shadow */
-html.theme-bbs .modal,
-html.theme-bbs .pop,
-html.theme-bbs .ctx-menu,
-html.theme-bbs .search-bar {
+html.theme-bbs :is(.modal, .pop, .ctx-menu, .search-bar, .term-overlay__card) {
   border: 3px double var(--accent);
   box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6), 0 16px 40px rgba(0, 0, 0, 0.7);
 }
-html.theme-bbs .status-kind {
-  background: var(--accent);
-  color: #03121a;
-  border-color: var(--accent);
+html.theme-bbs .modal__foot {
+  border-top: 1px dashed var(--line);
 }
-html.theme-bbs .field input,
-html.theme-bbs .file-row input,
-html.theme-bbs .select {
-  background: var(--bg-0);
+html.theme-bbs .modal-backdrop {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: none;
+}
+html.theme-bbs .term-overlay {
+  background: rgba(2, 3, 10, 0.6);
+  backdrop-filter: none;
+}
+
+/* forms: void-black wells, cyan labels + caret, soft cyan focus ring */
+html.theme-bbs .field__label {
+  color: var(--accent);
+}
+html.theme-bbs :is(.field input, .file-row input, .select, .seg) {
+  background: var(--bbs-field);
+}
+html.theme-bbs :is(.field input, .file-row input) {
+  caret-color: var(--accent);
 }
 html.theme-bbs :is(.field input, .file-row input, .select):focus {
   border-color: var(--accent);
-  box-shadow: none;
+  box-shadow: 0 0 0 2px rgba(63, 224, 255, 0.12);
+}
+html.theme-bbs :is(.field input, .file-row input)::placeholder {
+  color: var(--text-3);
 }
 
-/* ---- Synapse: sharp brutalist panels that GLOW, uppercase mono ---- */
-html.theme-synapse .brand__mark {
-  box-shadow: var(--glow);
-}
-html.theme-synapse .tab.is-active {
-  color: var(--accent-2);
-}
-html.theme-synapse .tab.is-active::after {
-  background: var(--accent-2);
-  box-shadow: var(--glow-2);
-}
-html.theme-synapse :is(.btn, .ghost-btn) {
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  border-width: 2px;
-}
-html.theme-synapse .btn.primary {
-  background: var(--accent);
-  color: #12001a;
-  box-shadow: var(--glow);
-}
-html.theme-synapse .btn.primary:hover {
-  filter: brightness(1.08);
-  box-shadow: var(--glow);
-}
-html.theme-synapse .btn.ghost,
-html.theme-synapse .ghost-btn {
-  border-color: var(--accent-2);
-  color: var(--accent-2);
-}
-html.theme-synapse :is(.btn.ghost, .ghost-btn):hover {
-  color: var(--text-0);
-  box-shadow: var(--glow-2);
-}
-html.theme-synapse .seg button.is-active {
-  color: var(--accent-2);
-  box-shadow: var(--glow-2);
-}
-/* neon-bordered, glowing panels */
-html.theme-synapse .modal {
-  border: 2px solid var(--accent);
-  box-shadow: var(--glow), 0 20px 50px rgba(5, 2, 15, 0.6);
-}
-html.theme-synapse .pop,
-html.theme-synapse .ctx-menu,
-html.theme-synapse .search-bar {
-  border: 1px solid var(--accent-2);
-  box-shadow: var(--glow-2);
-}
-html.theme-synapse .modal__head {
-  border-bottom: 1px solid var(--accent-soft);
-}
-html.theme-synapse .modal__title {
-  color: var(--accent);
-}
-/* uppercase mono labels */
-html.theme-synapse :is(.side-group__label, .field__label, .status-kind) {
-  color: var(--accent-2);
-}
-html.theme-synapse .field__label {
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-family: var(--font-mono);
-}
-html.theme-synapse .status-kind {
-  border-color: var(--accent-2);
-}
-html.theme-synapse :is(.field input, .file-row input, .select):focus {
-  border-color: var(--accent-2);
-  box-shadow: var(--glow-2);
-}
-html.theme-synapse .check input {
-  accent-color: var(--accent);
-}
-
-/* ---- BBS: box-drawing corner glyphs framing panels (double-line ANSI) ---- */
-html.theme-bbs :is(.modal, .pop, .ctx-menu) {
+/* box-drawing corner glyphs framing panels (double-line ANSI) */
+html.theme-bbs :is(.modal, .pop, .ctx-menu, .term-overlay__card) {
   position: relative;
   overflow: visible;
 }
-html.theme-bbs :is(.modal, .pop, .ctx-menu)::before,
-html.theme-bbs :is(.modal, .pop, .ctx-menu)::after,
+html.theme-bbs :is(.modal, .pop, .ctx-menu, .term-overlay__card)::before,
+html.theme-bbs :is(.modal, .pop, .ctx-menu, .term-overlay__card)::after,
 html.theme-bbs .modal__head::after,
 html.theme-bbs .modal__foot::before {
   position: absolute;
@@ -1618,12 +1719,12 @@ html.theme-bbs .modal__foot::before {
   pointer-events: none;
   z-index: 1;
 }
-html.theme-bbs :is(.modal, .pop, .ctx-menu)::before {
+html.theme-bbs :is(.modal, .pop, .ctx-menu, .term-overlay__card)::before {
   content: "╔";
   top: -9px;
   left: -3px;
 }
-html.theme-bbs :is(.modal, .pop, .ctx-menu)::after {
+html.theme-bbs :is(.modal, .pop, .ctx-menu, .term-overlay__card)::after {
   content: "╝";
   bottom: -9px;
   right: -3px;
@@ -1645,40 +1746,792 @@ html.theme-bbs .modal__foot::before {
   left: -3px;
 }
 
-/* ---- Starbase (LCARS): all-caps voice, pill shapes, orange fills ---- */
+/* cool phosphor flicker tint */
+html.theme-bbs.fx-flicker::before {
+  background: rgba(63, 224, 255, 0.03);
+}
+
+/* ============================================================================
+   Synapse — 80s synthwave "NEURAL_OS".
+   Magenta top/bottom rails + cyan-edged navigator, label-caps mono everywhere,
+   panels that GLOW instead of shadow, solid-cyan skewed active items.
+   ========================================================================== */
+html.theme-synapse {
+  --sy-pink: #ffabf3; /* pink phosphor text accent */
+  --sy-on-cyan: #024a4a; /* dark legend on solid cyan */
+}
+
+html.theme-synapse ::selection {
+  background: var(--accent);
+  color: #12001a;
+}
+html.theme-synapse ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+html.theme-synapse ::-webkit-scrollbar-thumb {
+  background: var(--accent-2);
+}
+html.theme-synapse ::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* shell topology: magenta chrome rails, cyan CYBER_CORE sidebar */
+html.theme-synapse .sidebar {
+  position: relative;
+  z-index: 2;
+  background-color: var(--bg-0);
+  background-image: none;
+  border-right: 2px solid var(--accent-2);
+  box-shadow: 5px 0 15px rgba(0, 251, 251, 0.16);
+}
+html.theme-synapse .tabbar {
+  position: relative;
+  z-index: 1;
+  border-bottom: 2px solid var(--accent);
+  box-shadow: 0 5px 15px -7px rgba(255, 0, 255, 0.5);
+}
+html.theme-synapse .statusbar {
+  background: var(--bg-0);
+  border-top: 2px solid var(--accent);
+  box-shadow: 0 -5px 15px -7px rgba(255, 0, 255, 0.5);
+}
+
+/* brand = the CORE badge: cyan outline + glow, Grotesk display name */
+html.theme-synapse .brand__mark {
+  background: transparent;
+  border: 2px solid var(--accent-2);
+  color: var(--accent-2);
+  box-shadow: 0 0 10px rgba(0, 251, 251, 0.5);
+}
+html.theme-synapse .brand__name {
+  font-family: "Space Grotesk", var(--font-ui);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  text-shadow: 0 0 10px rgba(0, 251, 251, 0.4);
+}
+html.theme-synapse .brand__name span {
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+  color: var(--sy-pink);
+  text-shadow: 0 0 12px rgba(255, 0, 255, 0.5);
+}
+
+/* label-caps: mono, wide tracking, muted (the NEURAL_OS section voice) */
+html.theme-synapse :is(.side-group__label, .pop__label, .theme-group, .settings-section) {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--text-2);
+}
+html.theme-synapse .side-footer__ver {
+  color: var(--sy-pink);
+}
+html.theme-synapse :is(.quick__icon, .tree-conn__icon, .pop__icon) {
+  background: var(--bg-1);
+  border-color: rgba(0, 251, 251, 0.35);
+}
+
+/* rows: surface-high hover with a cyan gutter marker + cyan legend */
+html.theme-synapse :is(.quick__btn, .tree-folder, .tree-conn, .pop__item, .ctx-item):hover {
+  background: var(--bg-4);
+  box-shadow: inset 3px 0 0 var(--accent-2);
+}
+html.theme-synapse .ctx-item:hover {
+  color: var(--accent-2);
+}
+html.theme-synapse
+  :is(.quick__btn:hover .quick__label, .tree-conn:hover .tree-conn__name,
+    .tree-folder:hover .tree-folder__name, .pop__item:hover .pop__name) {
+  color: var(--accent-2);
+}
+html.theme-synapse .ctx-item.danger:hover {
+  color: var(--danger);
+  background: rgba(255, 107, 139, 0.12);
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+
+/* tabs: label-caps mono; the active tab goes solid cyan and skews (nav-link) */
+html.theme-synapse .tab__title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+html.theme-synapse .tab:hover {
+  color: var(--accent-2);
+}
+html.theme-synapse .tab.is-active {
+  background: var(--accent-2);
+  color: var(--sy-on-cyan);
+  box-shadow: 0 0 12px rgba(0, 251, 251, 0.5);
+  transform: skewX(-3deg);
+}
+html.theme-synapse .tab.is-active::after {
+  display: none;
+}
+html.theme-synapse .tab.is-active .tab__title {
+  color: var(--sy-on-cyan);
+  text-shadow: none;
+}
+html.theme-synapse .tab.is-active .tab__close {
+  color: var(--sy-on-cyan);
+  opacity: 0.8;
+}
+html.theme-synapse .tab.is-active .tab__dot {
+  box-shadow: 0 0 0 2px rgba(2, 74, 74, 0.3);
+}
+
+/* status readouts: solid cyan protocol chip, cyan dims */
+html.theme-synapse .status-kind {
+  background: var(--accent-2);
+  color: var(--sy-on-cyan);
+  border: 0;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  box-shadow: 0 0 8px rgba(0, 251, 251, 0.4);
+}
+html.theme-synapse .status-kind:empty {
+  display: none;
+}
+html.theme-synapse .status-dims {
+  color: var(--accent-2);
+}
+
+/* buttons: label-caps mono, 2px borders; hover FILLS (never just tints) */
+html.theme-synapse :is(.btn, .ghost-btn) {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+html.theme-synapse .btn.primary {
+  background: var(--accent);
+  border: 2px solid var(--accent);
+  color: #12001a;
+  box-shadow: var(--glow);
+}
+html.theme-synapse .btn.primary:hover {
+  filter: none;
+  background: var(--sy-pink);
+  border-color: var(--sy-pink);
+  color: #12001a;
+  box-shadow: var(--glow);
+}
+html.theme-synapse :is(.btn.ghost, .ghost-btn) {
+  background: transparent;
+  border: 2px solid var(--accent-2);
+  color: var(--accent-2);
+}
+html.theme-synapse :is(.btn.ghost, .ghost-btn):hover {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  color: var(--sy-on-cyan);
+  box-shadow: var(--glow-2);
+}
+html.theme-synapse .seg button {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+html.theme-synapse .seg button.is-active {
+  color: var(--accent-2);
+  box-shadow: 0 0 10px rgba(0, 251, 251, 0.35);
+}
+
+/* neon panels: glow instead of drop shadow */
+html.theme-synapse .modal {
+  background: var(--bg-3);
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 25px rgba(255, 0, 255, 0.55);
+}
+html.theme-synapse .modal__head {
+  border-bottom: 1px solid rgba(255, 0, 255, 0.3);
+}
+html.theme-synapse .modal__title {
+  font-family: "Space Grotesk", var(--font-ui);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--sy-pink);
+  text-shadow: 0 0 14px rgba(255, 0, 255, 0.4);
+}
+html.theme-synapse .modal__foot {
+  border-top: 1px solid rgba(255, 0, 255, 0.3);
+  background: transparent;
+}
+html.theme-synapse .modal-backdrop {
+  background: rgba(5, 2, 15, 0.62);
+  backdrop-filter: blur(4px);
+}
+html.theme-synapse :is(.pop, .ctx-menu) {
+  background: var(--bg-3);
+  border: 1px solid var(--accent-2);
+  box-shadow: 0 0 15px rgba(0, 251, 251, 0.3);
+}
+html.theme-synapse .search-bar {
+  background: var(--bg-2);
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+}
+html.theme-synapse .search-bar__icon {
+  color: var(--accent);
+}
+html.theme-synapse .search-bar__input {
+  font-family: var(--font-mono);
+  color: var(--sy-pink);
+}
+html.theme-synapse .search-bar__input::placeholder {
+  color: rgba(255, 171, 243, 0.5);
+  text-transform: uppercase;
+}
+html.theme-synapse .term-overlay {
+  background: rgba(5, 2, 15, 0.6);
+}
+html.theme-synapse .term-overlay__card {
+  background: var(--bg-3);
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 25px rgba(255, 0, 255, 0.5);
+}
+html.theme-synapse .toast {
+  background: var(--bg-3);
+  border: 2px solid var(--accent-2);
+  box-shadow: 0 0 15px rgba(0, 251, 251, 0.3);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+html.theme-synapse .toast--warn {
+  border-color: var(--warn);
+  box-shadow: 0 0 12px rgba(205, 205, 0, 0.45);
+}
+html.theme-synapse .toast--error {
+  border-color: var(--danger);
+  box-shadow: 0 0 12px rgba(255, 93, 93, 0.45);
+}
+
+/* forms: translucent-cyan 2px fields, mono, uppercase placeholders */
+html.theme-synapse .field__label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--accent-2);
+}
+html.theme-synapse :is(.field input, .file-row input, .select) {
+  background: var(--bg-2);
+  border: 2px solid rgba(0, 251, 251, 0.4);
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  caret-color: var(--accent-2);
+}
+html.theme-synapse :is(.field input, .file-row input, .select):focus {
+  border-color: var(--accent-2);
+  box-shadow: 0 0 10px rgba(0, 251, 251, 0.4);
+}
+html.theme-synapse :is(.field input, .file-row input)::placeholder {
+  color: rgba(220, 190, 212, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+html.theme-synapse .select option {
+  background: var(--bg-3);
+  color: var(--text-0);
+}
+html.theme-synapse .tree-rename {
+  background: var(--bg-2);
+  border: 2px solid var(--accent-2);
+  color: #ffffff;
+  font-family: var(--font-mono);
+}
+html.theme-synapse .check input {
+  accent-color: var(--accent);
+}
+html.theme-synapse input[type="range"] {
+  accent-color: var(--accent-2);
+}
+
+/* CRT overlay: alternating scanlines + faint RGB chromatic stripes */
+html.theme-synapse.fx-scanlines::after {
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.14) 50%),
+    linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.012), rgba(0, 0, 255, 0.03)),
+    radial-gradient(120% 120% at 50% 40%, transparent 60%, rgba(5, 2, 15, 0.55) 100%);
+  background-size: 100% 3px, 3px 100%, 100% 100%;
+}
+html.theme-synapse.fx-flicker::before {
+  background: rgba(120, 40, 160, 0.05);
+}
+
+/* ============================================================================
+   Starbase — an LCARS starship console.
+   Condensed all-caps Antonio, colored blocks/pills with black legends on pure
+   black, asymmetric rounded-right panels with thick left rails, a lilac sweep
+   for the status bar, and a color-rotated shell rail.
+   ========================================================================== */
+html.theme-starbase {
+  --lcars-tan: #ffcc66;
+  --lcars-sand: #ffcc99;
+  --lcars-lilac: #9999cc;
+  --lcars-blue: #6699cc;
+  --lcars-ice: #99ccff;
+}
+
+html.theme-starbase body {
+  letter-spacing: 0.04em;
+}
+html.theme-starbase ::selection {
+  background: var(--warn);
+  color: #000000;
+}
+html.theme-starbase ::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+html.theme-starbase ::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border: 2px solid #000000;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+html.theme-starbase ::-webkit-scrollbar-thumb:hover {
+  background: var(--warn);
+  background-clip: padding-box;
+}
+
+/* the LCARS voice: condensed caps everywhere the computer speaks */
 html.theme-starbase
-  :is(.side-group__label, .status-kind, .btn, .ghost-btn, .tab__title, .quick__label,
-    .field__label, .brand__name, .seg button, .tree-folder__name, .settings-section,
-    .pop__label, .theme-group) {
+  :is(.side-group__label, .status-kind, .status-title, .status-os, .btn, .ghost-btn,
+    .tab__title, .quick__label, .quick__hint, .field__label, .brand__name, .seg button,
+    .tree-folder__name, .tree-conn__name, .pop__name, .pop__label, .ctx-item,
+    .settings-section, .theme-group, .theme-card__name, .side-footer__btn,
+    .modal__title, .empty-hint p, .toast) {
   text-transform: uppercase;
   letter-spacing: 0.07em;
 }
+/* pill geometry */
 html.theme-starbase
-  :is(.tab, .btn, .ghost-btn, .status-kind, .seg, .seg button, .search-bar, .tab-add,
-    .side-add, .modal__close, .tree-act, .quick__go) {
+  :is(.tab, .btn, .ghost-btn, .status-kind, .seg button, .search-bar, .tab-add,
+    .side-add, .modal__close, .tab__close, .tree-act, .quick__go) {
   border-radius: 999px;
 }
-html.theme-starbase :is(.modal, .pop, .ctx-menu, .toast, .quick__icon, .tree-conn__icon, .pop__icon) {
-  border-radius: 20px;
+
+/* pure black frame — no chrome tinting, no hairlines between regions */
+html.theme-starbase .sidebar {
+  background: #000000;
+  border-right: 0;
+}
+html.theme-starbase .tabbar {
+  background: #000000;
+  border-bottom: 0;
+}
+
+/* brand: the top-left elbow block — orange, black legend, right-aligned */
+html.theme-starbase .brand {
+  background: var(--accent);
+  margin: 6px 10px 8px 6px;
+  padding: 10px 14px;
+  border-radius: 26px 4px 4px 4px;
+  justify-content: flex-end;
+}
+html.theme-starbase .brand__mark {
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  box-shadow: none;
+  color: #000000;
+}
+html.theme-starbase .brand__name {
+  color: #000000;
+  font-weight: 700;
+  font-size: 18px;
+}
+html.theme-starbase .brand__name span {
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+  color: #000000;
+}
+
+/* rail group heads: violet, right-aligned, tiny caps */
+html.theme-starbase .side-group__label {
+  color: var(--accent-2);
+  justify-content: flex-end;
+  gap: 8px;
+  letter-spacing: 0.14em;
+}
+html.theme-starbase .settings-section {
+  color: var(--warn);
+}
+html.theme-starbase .pop__label {
+  color: var(--accent-2);
+}
+
+/* quick launch = the LCARS rail: color-rotated blocks, black right labels */
+html.theme-starbase .quick {
+  gap: 4px;
+}
+html.theme-starbase .quick__btn {
+  flex-direction: row-reverse;
+  background: var(--lcars-tan);
+  border-radius: 2px;
+  padding: 7px 12px;
+  min-height: 44px;
+}
+html.theme-starbase .quick__btn:nth-child(4n + 2) {
+  background: var(--lcars-lilac);
+}
+html.theme-starbase .quick__btn:nth-child(4n + 3) {
+  background: var(--accent-2);
+}
+html.theme-starbase .quick__btn:nth-child(4n + 4) {
+  background: var(--lcars-sand);
+}
+html.theme-starbase .quick__btn:hover {
+  background: var(--warn);
+}
+html.theme-starbase .quick__icon {
+  display: none;
+}
+html.theme-starbase .quick__text {
+  align-items: flex-end;
+  text-align: right;
+}
+html.theme-starbase .quick__label {
+  color: #000000;
+  font-weight: 600;
+}
+html.theme-starbase .quick__hint {
+  color: rgba(0, 0, 0, 0.55);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+}
+html.theme-starbase .quick__go {
+  color: #000000;
+}
+
+/* connections tree: lilac folder bars, plain data rows with ice readouts */
+html.theme-starbase .tree-folder {
+  background: var(--lcars-lilac);
+  border-radius: 0 12px 12px 0;
+}
+html.theme-starbase .tree-folder:hover {
+  background: var(--warn);
+}
+html.theme-starbase .tree-folder.drop-into {
+  background: var(--warn);
+  box-shadow: none;
+}
+html.theme-starbase .tree-folder__name {
+  color: #000000;
+  font-weight: 600;
+}
+html.theme-starbase .tree-folder :is(.tree-twisty, .tree-folder__icon) {
+  color: rgba(0, 0, 0, 0.7);
+}
+html.theme-starbase .tree-folder__count {
+  color: rgba(0, 0, 0, 0.55);
+  font-family: var(--font-ui);
+}
+html.theme-starbase .tree-folder .tree-act {
+  color: rgba(0, 0, 0, 0.65);
+}
+html.theme-starbase .tree-folder .tree-act:hover {
+  background: rgba(0, 0, 0, 0.25);
+  color: #000000;
+}
+html.theme-starbase .tree-conn:hover {
+  background: var(--bg-2);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+html.theme-starbase .tree-conn__icon {
+  background: transparent;
+  border: 0;
+  color: var(--lcars-ice);
+}
+html.theme-starbase .tree-conn__name {
+  color: var(--text-1);
+}
+html.theme-starbase .tree-conn__sub {
+  color: var(--lcars-blue);
+  font-family: var(--font-ui);
+  letter-spacing: 0.06em;
+}
+
+/* tabs: every tab is a colored pill with a black legend (LCARS pill tabs) */
+html.theme-starbase .tab {
+  background: var(--lcars-lilac);
+  color: #000000;
+}
+html.theme-starbase .tab:hover {
+  background: var(--lcars-tan);
+  color: #000000;
 }
 html.theme-starbase .tab.is-active {
   background: var(--accent);
-  color: #180c02;
+  color: #000000;
 }
 html.theme-starbase .tab.is-active::after {
   display: none;
 }
-html.theme-starbase .btn.primary,
-html.theme-starbase .seg button.is-active,
-html.theme-starbase .status-kind {
-  background: var(--accent);
-  color: #180c02;
-  border-color: var(--accent);
+html.theme-starbase .tab__title {
+  font-weight: 600;
 }
-html.theme-starbase .btn.primary:hover {
-  filter: brightness(1.08);
+html.theme-starbase .tab__close {
+  color: rgba(0, 0, 0, 0.55);
+}
+html.theme-starbase .tab__close:hover {
+  background: rgba(0, 0, 0, 0.75);
+  color: var(--lcars-sand);
+}
+html.theme-starbase .tab__dot.connected,
+html.theme-starbase .status-dot.connected {
   box-shadow: none;
 }
-html.theme-starbase .side-group__label {
+html.theme-starbase .tab__dot.exited {
+  background: rgba(0, 0, 0, 0.4);
+}
+html.theme-starbase .tab-add {
+  background: var(--lcars-tan);
+  color: #000000;
+}
+html.theme-starbase .tab-add:hover {
+  background: var(--warn);
+  color: #000000;
+}
+
+/* status bar: the lilac bottom sweep — black legend, pill right end */
+html.theme-starbase .statusbar {
+  background: var(--lcars-lilac);
+  border-top: 0;
+  margin: 3px 8px 4px 0;
+  border-radius: 0 999px 999px 0;
+  padding: 0 16px 0 12px;
+  color: rgba(0, 0, 0, 0.75);
+  font-size: 11px;
+  font-weight: 600;
+}
+html.theme-starbase .status-title {
+  color: #000000;
+  font-weight: 700;
+}
+html.theme-starbase .status-os {
+  color: rgba(0, 0, 0, 0.6);
+}
+html.theme-starbase .status-dims {
+  color: #000000;
+  font-family: var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.1em;
+}
+html.theme-starbase .status-kind {
+  background: #000000;
   color: var(--warn);
+  border: 0;
+  padding: 2px 10px;
+}
+html.theme-starbase .status-kind:empty {
+  display: none;
+}
+html.theme-starbase .status-dot {
+  border: 2px solid rgba(0, 0, 0, 0.35);
+  width: 11px;
+  height: 11px;
+}
+html.theme-starbase .status-dot.exited {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+/* buttons: solid pills, black legends, gold on hover */
+html.theme-starbase .btn {
+  border: 0;
+  font-weight: 600;
+}
+html.theme-starbase .btn.ghost {
+  background: var(--lcars-tan);
+  border: 0;
+  color: #000000;
+}
+html.theme-starbase .btn.ghost:hover {
+  background: var(--warn);
+  color: #000000;
+}
+html.theme-starbase .btn.primary {
+  background: var(--accent);
+  color: #000000;
+}
+html.theme-starbase .btn.primary:hover {
+  background: var(--warn);
+  color: #000000;
+  filter: none;
+  box-shadow: none;
+}
+html.theme-starbase .ghost-btn {
+  background: var(--lcars-lilac);
+  border: 0;
+  color: #000000;
+  font-weight: 600;
+}
+html.theme-starbase .ghost-btn:hover {
+  background: var(--warn);
+  color: #000000;
+}
+html.theme-starbase .seg {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  gap: 6px;
+}
+html.theme-starbase .seg button {
+  background: var(--bg-3);
+  color: var(--text-2);
+}
+html.theme-starbase .seg button:hover {
+  background: var(--lcars-tan);
+  color: #000000;
+}
+html.theme-starbase .seg button.is-active {
+  background: var(--accent);
+  color: #000000;
+  box-shadow: none;
+}
+
+/* forms: dark wells with a thick orange left rail, rounded right (LCARS) */
+html.theme-starbase :is(.field input, .file-row input, .select) {
+  background: var(--bg-2);
+  border: 2px solid var(--accent);
+  border-left-width: 8px;
+  border-radius: 0 12px 12px 0;
+  color: var(--text-1);
+}
+html.theme-starbase :is(.field input, .file-row input, .select):focus {
+  border-color: var(--warn);
+  box-shadow: 0 0 0 1px var(--warn);
+}
+html.theme-starbase :is(.field input, .file-row input)::placeholder {
+  color: #7a5a44;
+}
+html.theme-starbase .select option {
+  background: var(--bg-2);
+  color: var(--text-1);
+}
+html.theme-starbase .tree-rename {
+  background: var(--bg-2);
+  border: 2px solid var(--warn);
+  border-radius: 0 10px 10px 0;
+}
+html.theme-starbase .check input,
+html.theme-starbase input[type="range"] {
+  accent-color: var(--warn);
+}
+
+/* panels: orange-railed cards; the modal header is a solid orange bar */
+html.theme-starbase .modal {
+  background: var(--bg-2);
+  border: 2px solid var(--accent);
+  border-left-width: 12px;
+  border-radius: 0 20px 20px 0;
+}
+html.theme-starbase .modal__head {
+  background: var(--accent);
+  color: #000000;
+  padding: 10px 18px;
+}
+html.theme-starbase .modal__title {
+  color: #000000;
+  font-weight: 700;
+}
+html.theme-starbase .modal__close {
+  color: rgba(0, 0, 0, 0.7);
+}
+html.theme-starbase .modal__close:hover {
+  background: rgba(0, 0, 0, 0.22);
+  color: #000000;
+}
+html.theme-starbase .modal__body {
+  padding-top: 14px;
+}
+html.theme-starbase .modal__foot {
+  border-top: 1px solid var(--line-soft);
+}
+html.theme-starbase .modal-backdrop {
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: none;
+}
+html.theme-starbase :is(.pop, .ctx-menu) {
+  background: var(--bg-2);
+  border: 2px solid var(--accent-2);
+  border-left-width: 8px;
+  border-radius: 0 14px 14px 0;
+}
+html.theme-starbase :is(.pop__item, .ctx-item):hover {
+  background: var(--bg-3);
+  box-shadow: inset 3px 0 0 var(--warn);
+}
+html.theme-starbase .ctx-item.danger:hover {
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+html.theme-starbase .pop__icon {
+  background: transparent;
+  border: 0;
+  color: var(--lcars-ice);
+}
+html.theme-starbase .pop__hint {
+  color: var(--lcars-blue);
+  font-family: var(--font-ui);
+  letter-spacing: 0.08em;
+}
+html.theme-starbase .pop__sep {
+  background: var(--line-soft);
+}
+html.theme-starbase .search-bar {
+  background: #000000;
+  border: 2px solid var(--accent);
+}
+html.theme-starbase .search-bar__icon {
+  color: var(--accent);
+}
+html.theme-starbase .toast {
+  background: var(--bg-2);
+  border: 0;
+  border-left: 8px solid var(--accent);
+  border-radius: 0 12px 12px 0;
+  color: var(--text-1);
+}
+html.theme-starbase .toast--warn {
+  border-left-color: var(--warn);
+}
+html.theme-starbase .toast--error {
+  border-left-color: var(--danger);
+}
+html.theme-starbase .term-overlay {
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: none;
+}
+html.theme-starbase .term-overlay__card {
+  background: var(--bg-2);
+  border: 2px solid var(--accent);
+  border-left-width: 12px;
+  border-radius: 0 16px 16px 0;
+}
+html.theme-starbase .term-overlay__msg {
+  font-family: var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* footer */
+html.theme-starbase .side-footer {
+  border-top: 1px solid var(--line-soft);
+}
+html.theme-starbase .side-footer__ver {
+  font-family: var(--font-ui);
+  color: var(--lcars-blue);
+  letter-spacing: 0.12em;
 }

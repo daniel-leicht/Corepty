@@ -181,14 +181,16 @@ export const THEMES: Theme[] = [
       bg0: "#140727", bg1: "#190c2d", bg2: "#211536", bg3: "#26193a", bg4: "#302445",
       line: "#564052", lineSoft: "#3c2e50",
       text0: "#ecdcff", text1: "#dcbed4", text2: "#a4899d", text3: "#7a6b86",
-      accent: "#ff2bd6", accent2: "#00fbfb", ok: "#00ff41", warn: "#cdcd00", danger: "#ff6b8b",
+      accent: "#ff00ff", accent2: "#00fbfb", ok: "#00ff41", warn: "#cdcd00", danger: "#ff6b8b",
       radius: 0,
     },
-    fontUi: '"Space Grotesk", "Segoe UI", system-ui, sans-serif',
+    // Body voice is Space Mono (source: --font-body); Space Grotesk is reserved
+    // for display type (brand / modal titles) via CSS overrides.
+    fontUi: '"Space Mono", "JetBrains Mono", ui-monospace, "Cascadia Mono", monospace',
     fontMono: '"JetBrains Mono", "Space Mono", ui-monospace, "Cascadia Mono", monospace',
     cursor: "underline",
     effects: { scanlines: true, flicker: true, grid: true, glow: true },
-    gridColor: "rgba(0, 251, 251, 0.05)",
+    gridColor: "rgba(0, 251, 251, 0.045)",
     glowColor: "rgba(255, 0, 255, 0.45)",
     terminal: {
       background: "#190c2d", foreground: "#ecdcff", cursor: "#ff00ff", cursorAccent: "#190c2d",
@@ -205,9 +207,10 @@ export const THEMES: Theme[] = [
     name: "Starbase",
     group: "Retro",
     colors: {
-      bg0: "#000000", bg1: "#000000", bg2: "#0b0b0b", bg3: "#161616", bg4: "#20201f",
-      line: "#3a2a1e", lineSoft: "#1e150d",
-      text0: "#ffe8d6", text1: "#ffab7d", text2: "#cf9270", text3: "#94705a",
+      // Warm near-blacks (the LCARS "#0b0805" field family), sand/muted text.
+      bg0: "#000000", bg1: "#000000", bg2: "#0b0805", bg3: "#14100a", bg4: "#211a12",
+      line: "#2a1c10", lineSoft: "#1a1206",
+      text0: "#ffe8d6", text1: "#ffcc99", text2: "#cc8866", text3: "#8a6a54",
       accent: "#ff9966", accent2: "#cc99cc", ok: "#66cc66", warn: "#ffcc00", danger: "#cc4444",
       radius: 18,
     },
