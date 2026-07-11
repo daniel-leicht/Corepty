@@ -496,6 +496,19 @@ button {
   width: 10px;
 }
 
+/* Retro themes draw a bold status-bar top rail (Synapse's magenta border, BBS's
+   line, Starbase's lilac pill); keep the terminal's last row clear of it with a
+   small bottom gap so the rail never strikes through the bottom line. */
+html.theme-bbs .stage {
+  margin-bottom: 5px;
+}
+html.theme-synapse .stage {
+  margin-bottom: 6px;
+}
+html.theme-starbase .stage {
+  margin-bottom: 4px;
+}
+
 .search-bar {
   position: absolute;
   top: 12px;
