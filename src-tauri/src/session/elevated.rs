@@ -9,8 +9,10 @@ use std::ffi::c_void;
 use std::fs::File;
 use std::mem::size_of;
 use std::os::windows::io::FromRawHandle;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
+use std::time::Duration;
 
 use tauri::AppHandle;
 use tokio::sync::mpsc::unbounded_channel;
@@ -47,6 +49,7 @@ pub fn spawn(
 
     // 1. Create the pipe — restricted so only elevated (admin) clients can open it.
     let handle = create_pipe(&pipe_name)?;
+    log(&format!("pipe created: {pipe_name}"));
 
     // 2. Re-launch ourselves elevated as the broker (raises the UAC prompt).
     if let Err(e) = launch_broker(&pipe_name, &shell, cols, rows) {
@@ -64,23 +67,55 @@ pub fn spawn(
     let (tx, mut rx) = unbounded_channel::<SessionInput>();
     manager.register(info.clone(), tx);
     emit_status(&app, &id, "connecting", None);
+    log(&format!("broker launched (id={id}); awaiting connect"));
+
+    // If the elevated broker never connects, surface an error (pointing at its
+    // log) instead of leaving a silent black terminal.
+    let connected = Arc::new(AtomicBool::new(false));
+    {
+        let (app, id, connected) = (app.clone(), id.clone(), connected.clone());
+        thread::spawn(move || {
+            thread::sleep(Duration::from_secs(25));
+            if !connected.load(Ordering::SeqCst) {
+                log("broker did not connect within 25s");
+                emit_exit(
+                    &app,
+                    &id,
+                    None,
+                    Some(
+                        "The elevated broker didn't connect — see %TEMP%\\corepty-broker.log."
+                            .to_string(),
+                    ),
+                );
+            }
+        });
+    }
 
     let raw = handle.0 as isize; // HANDLE isn't Send; smuggle it across as an integer.
     thread::spawn(move || {
         let handle = HANDLE(raw as *mut c_void);
         // Wait for the elevated broker to connect (ok if it already has).
         let _ = unsafe { ConnectNamedPipe(handle, None) };
+        connected.store(true, Ordering::SeqCst);
         let file = Arc::new(unsafe { File::from_raw_handle(handle.0) });
         emit_status(&app, &id, "connected", None);
+        log(&format!("broker connected (id={id}); streaming"));
 
         // pipe -> UI
         let reader = {
             let (app, id, file) = (app.clone(), id.clone(), file.clone());
             thread::spawn(move || {
                 let mut r: &File = &file;
+                let mut got = false;
                 loop {
                     match proto::read_frame(&mut r) {
-                        Ok(frame) if frame.tag == TAG_DATA => emit_data(&app, &id, &frame.payload),
+                        Ok(frame) if frame.tag == TAG_DATA => {
+                            if !got {
+                                got = true;
+                                log(&format!("received first {} bytes", frame.payload.len()));
+                            }
+                            emit_data(&app, &id, &frame.payload);
+                        }
                         Ok(frame) if frame.tag == TAG_EXIT => {
                             let code = (frame.payload.len() >= 4).then(|| {
                                 i32::from_le_bytes([
@@ -212,4 +247,13 @@ fn launch_broker(pipe_name: &str, shell: &str, cols: u16, rows: u16) -> Result<(
 
 fn wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
+}
+
+/// Append a diagnostic line to `%TEMP%\corepty-elevated.log`.
+fn log(msg: &str) {
+    use std::io::Write as _;
+    let path = std::env::temp_dir().join("corepty-elevated.log");
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+        let _ = writeln!(f, "{msg}");
+    }
 }

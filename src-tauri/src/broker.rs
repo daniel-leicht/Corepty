@@ -26,7 +26,20 @@ pub fn run(args: &[String]) {
     let shell = arg(args, "--shell").unwrap_or_else(|| "powershell".to_string());
     let cols: u16 = arg(args, "--cols").and_then(|s| s.parse().ok()).unwrap_or(80);
     let rows: u16 = arg(args, "--rows").and_then(|s| s.parse().ok()).unwrap_or(24);
-    let _ = bridge(&pipe_name, &shell, cols.max(1), rows.max(1));
+    log(&format!("start: shell={shell} cols={cols} rows={rows} pipe={pipe_name}"));
+    match bridge(&pipe_name, &shell, cols.max(1), rows.max(1)) {
+        Ok(()) => log("finished"),
+        Err(e) => log(&format!("ERROR: {e}")),
+    }
+}
+
+/// Append a diagnostic line to `%TEMP%\corepty-broker.log`.
+fn log(msg: &str) {
+    use std::io::Write as _;
+    let path = std::env::temp_dir().join("corepty-broker.log");
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+        let _ = writeln!(f, "{msg}");
+    }
 }
 
 fn arg(args: &[String], key: &str) -> Option<String> {
@@ -35,9 +48,11 @@ fn arg(args: &[String], key: &str) -> Option<String> {
 
 fn bridge(pipe_name: &str, shell: &str, cols: u16, rows: u16) -> Result<(), String> {
     let pipe = Arc::new(open_pipe(pipe_name).ok_or("could not connect to the app pipe")?);
+    log("pipe connected");
 
     let (program, pargs) =
         resolve_program(shell).ok_or_else(|| format!("unknown shell '{shell}'"))?;
+    log(&format!("program: {program}"));
 
     let pty = native_pty_system();
     let pair = pty
@@ -58,6 +73,7 @@ fn bridge(pipe_name: &str, shell: &str, cols: u16, rows: u16) -> Result<(), Stri
     }
 
     let mut child = pair.slave.spawn_command(cmd).map_err(|e| format!("spawn: {e}"))?;
+    log("shell spawned; streaming");
     drop(pair.slave);
     let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
     let mut writer = pair.master.take_writer().map_err(|e| e.to_string())?;
@@ -69,17 +85,21 @@ fn bridge(pipe_name: &str, shell: &str, cols: u16, rows: u16) -> Result<(), Stri
         let pipe = pipe.clone();
         thread::spawn(move || {
             let mut buf = [0u8; 16 * 1024];
+            let mut total = 0usize;
             loop {
                 match reader.read(&mut buf) {
                     Ok(0) | Err(_) => break,
                     Ok(n) => {
+                        total += n;
                         let mut w: &File = &pipe;
                         if proto::write_frame(&mut w, TAG_DATA, &buf[..n]).is_err() {
+                            log("pipe write failed");
                             break;
                         }
                     }
                 }
             }
+            log(&format!("pty reader ended after {total} bytes"));
         })
     };
 
@@ -115,6 +135,7 @@ fn bridge(pipe_name: &str, shell: &str, cols: u16, rows: u16) -> Result<(), Stri
 
     // Wait for the shell to exit, tell the app, then let it drain.
     let code = child.wait().ok().map(|s| s.exit_code() as i32).unwrap_or(-1);
+    log(&format!("shell exited: code={code}"));
     {
         let mut w: &File = &pipe;
         let _ = proto::write_frame(&mut w, TAG_EXIT, &code.to_le_bytes());
