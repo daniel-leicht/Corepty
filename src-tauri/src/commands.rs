@@ -14,6 +14,24 @@ pub fn session_create_local(
     local::spawn(app, &manager, options)
 }
 
+/// Open a local shell **elevated** (Administrator) via the UAC broker.
+#[tauri::command]
+pub fn session_create_local_elevated(
+    app: AppHandle,
+    manager: State<SessionManager>,
+    options: local::LocalOptions,
+) -> Result<SessionInfo, String> {
+    #[cfg(windows)]
+    {
+        crate::session::elevated::spawn(app, &manager, options)
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (app, manager, options);
+        Err("Elevated sessions are only supported on Windows".to_string())
+    }
+}
+
 #[tauri::command]
 pub fn session_create_ssh(
     app: AppHandle,

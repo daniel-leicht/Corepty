@@ -4,7 +4,10 @@
 // resize, close) into a channel, and the backend streams bytes back to the UI as
 // `pty://data` events plus lifecycle `pty://status` / `pty://exit` events.
 
+#[cfg(windows)]
+pub mod elevated;
 pub mod local;
+pub mod proto;
 pub mod ssh;
 pub mod telnet;
 

@@ -210,7 +210,19 @@ export class App {
       </button>`
     ).join("");
     quick.querySelectorAll<HTMLButtonElement>(".quick__btn").forEach((btn) => {
-      btn.addEventListener("click", () => this.newLocal(btn.dataset.shell as LocalShell));
+      const shell = () => btn.dataset.shell as LocalShell;
+      btn.addEventListener("click", () => this.newLocal(shell()));
+      btn.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        contextMenu(e.clientX, e.clientY, [
+          { label: "New tab", icon: "plus", action: () => void this.newLocal(shell()) },
+          {
+            label: "Run as Administrator",
+            icon: "shield",
+            action: () => void this.newLocalElevated(shell()),
+          },
+        ]);
+      });
     });
 
     this.root
@@ -338,6 +350,29 @@ export class App {
     this.updateStatus();
   }
 
+  /** Open a local shell elevated (Administrator) — raises a UAC prompt. */
+  async newLocalElevated(shell: LocalShell): Promise<void> {
+    const def = SHELLS.find((s) => s.shell === shell);
+    const label = def?.label ?? "Shell";
+    const title = `${label} (Admin)`;
+    const session = new TerminalSession("local", title, def?.iconName ?? "terminal");
+    session.elevated = true;
+    session.spec = { kind: "local", shell, elevated: true };
+    const { id, cols, rows } = this.beginSession(session);
+    try {
+      const info = await api.createLocalElevated({ id, shell, cols, rows, title });
+      session.attach(info);
+      // Status is driven by pty://status events: connecting → connected once the
+      // broker attaches after the UAC prompt.
+    } catch (err) {
+      this.byId.delete(id);
+      session.markError(String(err));
+      this.toast(`Couldn't start ${label} as admin: ${err}`, "error");
+    }
+    this.renderTabs();
+    this.updateStatus();
+  }
+
   async newSsh(form: ConnForm): Promise<void> {
     const title = form.name || `${form.username}@${form.host}`;
     const session = new TerminalSession("ssh", title, "ssh");
@@ -405,8 +440,12 @@ export class App {
     this.byId.set(id, session);
     try {
       if (spec.kind === "local") {
-        session.attach(await api.createLocal({ id, shell: spec.shell, cols, rows }));
-        session.setStatus("connected");
+        if (spec.elevated) {
+          session.attach(await api.createLocalElevated({ id, shell: spec.shell, cols, rows }));
+        } else {
+          session.attach(await api.createLocal({ id, shell: spec.shell, cols, rows }));
+          session.setStatus("connected");
+        }
       } else if (spec.kind === "ssh") {
         session.attach(await api.createSsh(this.sshOptions(spec.form, id, cols, rows)));
       } else {
@@ -493,6 +532,7 @@ export class App {
       el.innerHTML = `
         <span class="tab__icon">${icon(t.iconName)}</span>
         <span class="tab__title">${escapeHtml(t.title)}</span>
+        ${t.elevated ? `<span class="tab__admin" title="Administrator">${icon("shield")}</span>` : ""}
         <span class="tab__dot ${t.status}"></span>
         <button class="tab__close" title="Close (Ctrl+Shift+W)">${icon("close")}</button>
       `;
@@ -562,8 +602,10 @@ export class App {
       this.toast("This tab can't be duplicated", "warn");
       return;
     }
-    if (spec.kind === "local") void this.newLocal(spec.shell);
-    else if (spec.kind === "ssh") void this.newSsh(spec.form);
+    if (spec.kind === "local") {
+      if (spec.elevated) void this.newLocalElevated(spec.shell);
+      else void this.newLocal(spec.shell);
+    } else if (spec.kind === "ssh") void this.newSsh(spec.form);
     else void this.newTelnet(spec.form);
   }
 

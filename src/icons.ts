@@ -21,6 +21,7 @@ const paths: Record<string, string> = {
   pencil: '<path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
   trash: '<path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6.5 7l.8 12a2 2 0 0 0 2 1.9h5.4a2 2 0 0 0 2-1.9l.8-12"/>',
   copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>',
+  shield: '<path d="M12 3l7 3v5.2c0 4.3-2.9 7.5-7 8.8-4.1-1.3-7-4.5-7-8.8V6z"/><path d="M9.2 12l1.9 1.9 3.7-3.9"/>',
   folderPlus: '<path d="M4 6a2 2 0 0 1 2-2h3.2a2 2 0 0 1 1.6.8L12 6h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M12 11v5M9.5 13.5h5"/>',
   winMin: '<path d="M5 12h14"/>',
   winMax: '<rect x="5.5" y="5.5" width="13" height="13" rx="1.5"/>',

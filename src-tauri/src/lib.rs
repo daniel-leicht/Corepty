@@ -4,6 +4,8 @@
 // frontend over Tauri's IPC bridge. Terminal output streams back as
 // `pty://data` / `pty://status` / `pty://exit` events.
 
+#[cfg(windows)]
+mod broker;
 mod commands;
 mod session;
 mod store;
@@ -17,12 +19,23 @@ fn ping() -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Elevated re-launch: `corepty.exe --broker …` runs the broker, not the app.
+    #[cfg(windows)]
+    {
+        let args: Vec<String> = std::env::args().collect();
+        if args.iter().any(|a| a == "--broker") {
+            broker::run(&args);
+            return;
+        }
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(SessionManager::default())
         .invoke_handler(tauri::generate_handler![
             ping,
             commands::session_create_local,
+            commands::session_create_local_elevated,
             commands::session_create_ssh,
             commands::session_create_telnet,
             commands::session_write,

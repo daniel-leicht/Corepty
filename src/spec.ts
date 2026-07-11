@@ -3,6 +3,6 @@ import type { LocalShell } from "./ipc";
 import type { ConnForm } from "./dialog";
 
 export type LaunchSpec =
-  | { kind: "local"; shell: LocalShell }
+  | { kind: "local"; shell: LocalShell; elevated?: boolean }
   | { kind: "ssh"; form: ConnForm }
   | { kind: "telnet"; form: ConnForm };

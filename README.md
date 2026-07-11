@@ -33,6 +33,11 @@ automatically by the [Build &amp; Release workflow](https://github.com/daniel-le
 
 - **Local terminals** — Windows PowerShell, PowerShell 7, Command Prompt, and Bash
   (Git Bash / WSL), backed by real PTYs (ConPTY on Windows via `portable-pty`).
+- **Run as Administrator** — right-click a shell → *Run as Administrator* opens an
+  **elevated tab** in the same window. Since Windows won't let a non-elevated process
+  attach a PTY to an elevated child, CorePTY launches a tiny elevated **broker**
+  (`corepty.exe --broker`, via a UAC prompt) that runs the ConPTY and relays it back
+  over an admins-only named pipe. Elevated tabs are marked with a shield.
 - **SSH** — pure-Rust `russh`; password **and** private-key auth (with passphrase),
   host-key verification against `~/.ssh/known_hosts` (trust-on-first-use), PTY + shell,
   and live window resize.

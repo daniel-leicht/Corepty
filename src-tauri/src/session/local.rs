@@ -208,6 +208,18 @@ fn resolve_shell(opts: &LocalOptions) -> Result<(String, Vec<String>, String), S
     Ok(r)
 }
 
+/// Resolve `(program, args)` for a known shell name — shared with the elevated
+/// broker, which spawns the same shells under an elevated ConPTY.
+pub(crate) fn resolve_program(shell: &str) -> Option<(String, Vec<String>)> {
+    Some(match shell {
+        "cmd" => (resolve_cmd(), vec![]),
+        "powershell" => (resolve_powershell(), vec!["-NoLogo".to_string()]),
+        "pwsh" => (resolve_pwsh(), vec!["-NoLogo".to_string()]),
+        "bash" => (resolve_bash(), vec!["-l".to_string(), "-i".to_string()]),
+        _ => return None,
+    })
+}
+
 fn file_stem(program: &str) -> String {
     Path::new(program)
         .file_stem()

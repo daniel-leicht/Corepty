@@ -73,6 +73,8 @@ export const api = {
 
   createLocal: (options: LocalOptions) =>
     invoke<SessionInfo>("session_create_local", { options }),
+  createLocalElevated: (options: LocalOptions) =>
+    invoke<SessionInfo>("session_create_local_elevated", { options }),
   createSsh: (options: SshConnectOptions) =>
     invoke<SessionInfo>("session_create_ssh", { options }),
   createTelnet: (options: TelnetConnectOptions) =>

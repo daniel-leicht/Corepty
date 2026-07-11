@@ -415,6 +415,16 @@ button {
   font-family: var(--font-ui);
   outline: none;
 }
+.tab__admin {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--warn);
+}
+.tab__admin .icon {
+  width: 13px;
+  height: 13px;
+}
 .tab__dot {
   width: 7px;
   height: 7px;

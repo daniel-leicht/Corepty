@@ -28,6 +28,8 @@ export class TerminalSession {
   readonly uid = uuid();
   /** How to relaunch this tab (set by the app). */
   spec: LaunchSpec | null = null;
+  /** Whether this tab runs elevated (Administrator). */
+  elevated = false;
 
   /** Default label (shell name / user@host), set at creation and on attach. */
   private baseTitle: string;
