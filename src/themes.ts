@@ -302,3 +302,32 @@ export function applyTheme(id: string): Theme {
   active = t;
   return t;
 }
+
+/**
+ * Preload every font the themes use and resolve once they're available.
+ *
+ * `@font-face` fonts load lazily, but xterm measures the glyph cell from the
+ * *live* font — measuring before the font loads sizes the cell to a fallback
+ * face, which then mis-maps mouse selection to the wrong column and mis-counts
+ * rows (the last one spills under the status bar). Call this before opening the
+ * first terminal so its measurement is correct from the start; later theme
+ * switches re-measure against these now-loaded fonts.
+ */
+export async function preloadThemeFonts(): Promise<void> {
+  const set = typeof document !== "undefined" ? document.fonts : undefined;
+  if (!set?.load) return;
+  const families = new Set<string>();
+  const add = (stack?: string): void => {
+    const first = stack?.split(",")[0]?.replace(/["']/g, "").trim();
+    if (first) families.add(first);
+  };
+  add(DEFAULT_MONO_FONT);
+  add(DEFAULT_UI_FONT);
+  for (const t of THEMES) {
+    add(t.fontMono);
+    add(t.fontUi);
+  }
+  await Promise.all(
+    [...families].map((f) => set.load(`16px "${f}"`).catch(() => undefined))
+  );
+}

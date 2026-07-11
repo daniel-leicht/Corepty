@@ -19,7 +19,7 @@ import { ConnectionsTree } from "./connections";
 import { contextMenu, type MenuItem } from "./menu";
 import { SettingsDialog } from "./settings-dialog";
 import { current as settings, loadSettings } from "./settings";
-import { activeTheme } from "./themes";
+import { activeTheme, preloadThemeFonts } from "./themes";
 import { escapeHtml, uuid } from "./util";
 import { winClose, winMinimize, winSetDecorations, winStartResize, winToggleMaximize } from "./window";
 
@@ -80,6 +80,9 @@ export class App {
       toast: (m, k) => this.toast(m, k),
     });
     this.wireGlobalEvents();
+    // Web fonts load lazily; wait for the theme fonts before the first terminal
+    // measures its glyph cell, else selection columns and row count come out wrong.
+    await preloadThemeFonts();
     await this.newLocal(this.defaultShell());
     void this.tree.refresh();
   }
