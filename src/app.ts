@@ -23,6 +23,9 @@ import { activeTheme, preloadThemeFonts } from "./themes";
 import { escapeHtml, uuid } from "./util";
 import { winClose, winMinimize, winSetDecorations, winStartResize, winToggleMaximize } from "./window";
 
+/** App version, injected at build time by Vite (see vite.config.ts). */
+declare const __APP_VERSION__: string;
+
 interface ShellDef {
   shell: LocalShell;
   label: string;
@@ -135,7 +138,7 @@ export class App {
 
           <div class="side-footer">
             <button class="side-footer__btn" id="open-settings">${icon("settings")}<span>Settings</span></button>
-            <span class="side-footer__ver">v0.1.0</span>
+            <span class="side-footer__ver">v${__APP_VERSION__}</span>
           </div>
         </aside>
 
