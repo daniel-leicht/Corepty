@@ -2,14 +2,16 @@
 //!
 //! `corepty.exe` re-launches itself with `--broker …` via `ShellExecute "runas"`
 //! (which raises the UAC prompt). The elevated instance runs *this* code instead
-//! of the Tauri app: it connects back to the non-elevated app over a named pipe,
-//! spawns a ConPTY running the requested shell **elevated**, and relays terminal
-//! I/O + resize using the [`crate::session::proto`] framing. When the shell
-//! exits (or the app closes the pipe) the broker tears down and exits.
+//! of the Tauri app: it connects back to the non-elevated app over **two**
+//! one-directional named pipes (output + input), spawns a ConPTY running the
+//! requested shell **elevated**, and relays terminal I/O + resize.
+//!
+//! Two pipes (rather than one duplex pipe) are deliberate: Windows serializes
+//! synchronous I/O per handle, so concurrent read+write on a single handle would
+//! deadlock. Each pipe here is used in exactly one direction per side.
 
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
@@ -22,28 +24,19 @@ use crate::session::proto::{self, TAG_CLOSE, TAG_DATA, TAG_EXIT, TAG_RESIZE};
 
 /// Entry point for a `--broker` invocation. Blocks until the elevated shell ends.
 pub fn run(args: &[String]) {
-    let Some(pipe_name) = arg(args, "--pipe") else {
+    let (Some(pipe_out), Some(pipe_in)) = (arg(args, "--pipe-out"), arg(args, "--pipe-in"))
+    else {
         return;
     };
     let shell = arg(args, "--shell").unwrap_or_else(|| "powershell".to_string());
     let cols: u16 = arg(args, "--cols").and_then(|s| s.parse().ok()).unwrap_or(80);
     let rows: u16 = arg(args, "--rows").and_then(|s| s.parse().ok()).unwrap_or(24);
-    log(&format!("start: shell={shell} cols={cols} rows={rows} pipe={pipe_name}"));
-    // Detach any console handed to us by the elevation service, so ConPTY sets up
-    // cleanly (the console-less main app is where local shells already work).
+    log(&format!("start: shell={shell} cols={cols} rows={rows}"));
+    // Detach any console handed to us by the elevation service.
     let _ = unsafe { FreeConsole() };
-    match bridge(&pipe_name, &shell, cols.max(1), rows.max(1)) {
+    match bridge(&pipe_out, &pipe_in, &shell, cols.max(1), rows.max(1)) {
         Ok(()) => log("finished"),
         Err(e) => log(&format!("ERROR: {e}")),
-    }
-}
-
-/// Append a diagnostic line to `%TEMP%\corepty-broker.log`.
-fn log(msg: &str) {
-    use std::io::Write as _;
-    let path = std::env::temp_dir().join("corepty-broker.log");
-    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
-        let _ = writeln!(f, "{msg}");
     }
 }
 
@@ -51,9 +44,10 @@ fn arg(args: &[String], key: &str) -> Option<String> {
     args.iter().position(|a| a == key).and_then(|i| args.get(i + 1).cloned())
 }
 
-fn bridge(pipe_name: &str, shell: &str, cols: u16, rows: u16) -> Result<(), String> {
-    let pipe = Arc::new(open_pipe(pipe_name).ok_or("could not connect to the app pipe")?);
-    log("pipe connected");
+fn bridge(pipe_out: &str, pipe_in: &str, shell: &str, cols: u16, rows: u16) -> Result<(), String> {
+    let fout = Arc::new(open_pipe(pipe_out).ok_or("could not open the output pipe")?);
+    let fin = open_pipe(pipe_in).ok_or("could not open the input pipe")?;
+    log("pipes connected");
 
     let (program, pargs) =
         resolve_program(shell).ok_or_else(|| format!("unknown shell '{shell}'"))?;
@@ -85,96 +79,80 @@ fn bridge(pipe_name: &str, shell: &str, cols: u16, rows: u16) -> Result<(), Stri
     let master = pair.master;
     let mut killer = child.clone_killer();
 
-    // PTY output -> pipe.
-    let got = Arc::new(AtomicBool::new(false));
+    // PTY output -> output pipe (write-only on this handle).
     let out = {
-        let pipe = pipe.clone();
-        let got = got.clone();
+        let fout = fout.clone();
         thread::spawn(move || {
             let mut buf = [0u8; 16 * 1024];
             let mut total = 0usize;
             loop {
                 match reader.read(&mut buf) {
-                    Ok(0) => {
-                        log("pty EOF");
-                        break;
-                    }
-                    Err(e) => {
-                        log(&format!("pty read error: {e}"));
-                        break;
-                    }
+                    Ok(0) | Err(_) => break,
                     Ok(n) => {
                         if total == 0 {
-                            got.store(true, Ordering::SeqCst);
                             log(&format!("pty first output: {n} bytes"));
                         }
                         total += n;
-                        let mut w: &File = &pipe;
+                        let mut w: &File = &fout;
                         if proto::write_frame(&mut w, TAG_DATA, &buf[..n]).is_err() {
-                            log("pipe write failed");
+                            log("output pipe write failed");
                             break;
                         }
                     }
                 }
             }
-            log(&format!("pty reader ended after {total} bytes"));
+            log(&format!("pty output ended after {total} bytes"));
         })
     };
 
-    // Watchdog: after 3s, note whether the shell produced anything at all.
-    {
-        let got = got.clone();
-        thread::spawn(move || {
-            thread::sleep(Duration::from_secs(3));
-            if !got.load(Ordering::SeqCst) {
-                log("no PTY output after 3s — the elevated shell produced nothing");
-            }
-        });
-    }
-
-    // App input / resize -> PTY. Ends when the app closes the pipe.
-    let inp = {
-        let pipe = pipe.clone();
-        thread::spawn(move || {
-            let mut r: &File = &pipe;
-            while let Ok(frame) = proto::read_frame(&mut r) {
-                match frame.tag {
-                    TAG_DATA => {
-                        let _ = writer.write_all(&frame.payload);
-                        let _ = writer.flush();
-                    }
-                    TAG_RESIZE if frame.payload.len() >= 4 => {
-                        let c = u16::from_le_bytes([frame.payload[0], frame.payload[1]]);
-                        let r = u16::from_le_bytes([frame.payload[2], frame.payload[3]]);
-                        let _ = master.resize(PtySize {
-                            rows: r.max(1),
-                            cols: c.max(1),
-                            pixel_width: 0,
-                            pixel_height: 0,
-                        });
-                    }
-                    TAG_CLOSE => break,
-                    _ => {}
+    // App input / resize -> PTY (read-only on the input handle).
+    let _inp = thread::spawn(move || {
+        let mut r: &File = &fin;
+        while let Ok(frame) = proto::read_frame(&mut r) {
+            match frame.tag {
+                TAG_DATA => {
+                    let _ = writer.write_all(&frame.payload);
+                    let _ = writer.flush();
                 }
+                TAG_RESIZE if frame.payload.len() >= 4 => {
+                    let c = u16::from_le_bytes([frame.payload[0], frame.payload[1]]);
+                    let r = u16::from_le_bytes([frame.payload[2], frame.payload[3]]);
+                    let _ = master.resize(PtySize {
+                        rows: r.max(1),
+                        cols: c.max(1),
+                        pixel_width: 0,
+                        pixel_height: 0,
+                    });
+                }
+                TAG_CLOSE => break,
+                _ => {}
             }
-            // The app asked to close (or the pipe broke): stop the elevated shell.
-            let _ = killer.kill();
-        })
-    };
+        }
+        let _ = killer.kill();
+    });
 
-    // Wait for the shell to exit, tell the app, then let it drain.
+    // Wait for the shell, drain its output, then tell the app it exited.
     let code = child.wait().ok().map(|s| s.exit_code() as i32).unwrap_or(-1);
     log(&format!("shell exited: code={code}"));
+    let _ = out.join();
     {
-        let mut w: &File = &pipe;
+        let mut w: &File = &fout;
         let _ = proto::write_frame(&mut w, TAG_EXIT, &code.to_le_bytes());
     }
     thread::sleep(Duration::from_millis(120));
-    let _ = (out, inp);
     Ok(())
 }
 
-/// Open the app's named pipe as a client, retrying while it spins up.
+/// Append a diagnostic line to `%TEMP%\corepty-broker.log`.
+fn log(msg: &str) {
+    use std::io::Write as _;
+    let path = std::env::temp_dir().join("corepty-broker.log");
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+        let _ = writeln!(f, "{msg}");
+    }
+}
+
+/// Open one of the app's named pipes as a client, retrying while it spins up.
 fn open_pipe(name: &str) -> Option<File> {
     for _ in 0..100 {
         if let Ok(f) = OpenOptions::new().read(true).write(true).open(name) {
