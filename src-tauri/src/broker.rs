@@ -9,11 +9,13 @@
 
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
+use windows::Win32::System::Console::FreeConsole;
 
 use crate::session::local::resolve_program;
 use crate::session::proto::{self, TAG_CLOSE, TAG_DATA, TAG_EXIT, TAG_RESIZE};
@@ -27,6 +29,9 @@ pub fn run(args: &[String]) {
     let cols: u16 = arg(args, "--cols").and_then(|s| s.parse().ok()).unwrap_or(80);
     let rows: u16 = arg(args, "--rows").and_then(|s| s.parse().ok()).unwrap_or(24);
     log(&format!("start: shell={shell} cols={cols} rows={rows} pipe={pipe_name}"));
+    // Detach any console handed to us by the elevation service, so ConPTY sets up
+    // cleanly (the console-less main app is where local shells already work).
+    let _ = unsafe { FreeConsole() };
     match bridge(&pipe_name, &shell, cols.max(1), rows.max(1)) {
         Ok(()) => log("finished"),
         Err(e) => log(&format!("ERROR: {e}")),
@@ -81,15 +86,28 @@ fn bridge(pipe_name: &str, shell: &str, cols: u16, rows: u16) -> Result<(), Stri
     let mut killer = child.clone_killer();
 
     // PTY output -> pipe.
+    let got = Arc::new(AtomicBool::new(false));
     let out = {
         let pipe = pipe.clone();
+        let got = got.clone();
         thread::spawn(move || {
             let mut buf = [0u8; 16 * 1024];
             let mut total = 0usize;
             loop {
                 match reader.read(&mut buf) {
-                    Ok(0) | Err(_) => break,
+                    Ok(0) => {
+                        log("pty EOF");
+                        break;
+                    }
+                    Err(e) => {
+                        log(&format!("pty read error: {e}"));
+                        break;
+                    }
                     Ok(n) => {
+                        if total == 0 {
+                            got.store(true, Ordering::SeqCst);
+                            log(&format!("pty first output: {n} bytes"));
+                        }
                         total += n;
                         let mut w: &File = &pipe;
                         if proto::write_frame(&mut w, TAG_DATA, &buf[..n]).is_err() {
@@ -102,6 +120,17 @@ fn bridge(pipe_name: &str, shell: &str, cols: u16, rows: u16) -> Result<(), Stri
             log(&format!("pty reader ended after {total} bytes"));
         })
     };
+
+    // Watchdog: after 3s, note whether the shell produced anything at all.
+    {
+        let got = got.clone();
+        thread::spawn(move || {
+            thread::sleep(Duration::from_secs(3));
+            if !got.load(Ordering::SeqCst) {
+                log("no PTY output after 3s — the elevated shell produced nothing");
+            }
+        });
+    }
 
     // App input / resize -> PTY. Ends when the app closes the pipe.
     let inp = {
