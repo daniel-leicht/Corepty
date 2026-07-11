@@ -3,7 +3,7 @@
 // an interactive PTY + shell, live resize, and streamed I/O.
 
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use russh::client::{self, AuthResult, Handle};
@@ -73,6 +73,9 @@ pub fn connect(
         .id
         .clone()
         .unwrap_or_else(|| Uuid::new_v4().to_string());
+    if manager.exists(&id) {
+        return Err(format!("session id already in use: {id}"));
+    }
     let title = opts
         .title
         .clone()
@@ -115,18 +118,28 @@ async fn run_session(
     mut rx: UnboundedReceiver<SessionInput>,
 ) -> Result<Option<i32>, String> {
     let config = Arc::new(client::Config::default());
+    let reject_reason = Arc::new(Mutex::new(None::<String>));
     let handler = Client {
         app: app.clone(),
         id: id.clone(),
         host: opts.host.clone(),
         port: opts.port,
+        reject_reason: reject_reason.clone(),
     };
 
     let connect_fut = client::connect(config, (opts.host.as_str(), opts.port), handler);
-    let mut session = tokio::time::timeout(Duration::from_secs(20), connect_fut)
-        .await
-        .map_err(|_| "connection timed out".to_string())?
-        .map_err(|e| format!("could not connect: {e}"))?;
+    let mut session = match tokio::time::timeout(Duration::from_secs(20), connect_fut).await {
+        Err(_) => return Err("connection timed out".to_string()),
+        Ok(Ok(session)) => session,
+        Ok(Err(e)) => {
+            // A rejected host key surfaces here as a generic handshake failure;
+            // prefer the specific reason (changed key / possible MITM / etc.).
+            if let Some(reason) = reject_reason.lock().unwrap_or_else(|p| p.into_inner()).take() {
+                return Err(reason);
+            }
+            return Err(format!("could not connect: {e}"));
+        }
+    };
 
     authenticate(&mut session, &opts).await?;
 
@@ -232,6 +245,9 @@ struct Client {
     id: String,
     host: String,
     port: u16,
+    /// Set when we reject the server's host key, so the connect error carries the
+    /// specific reason instead of russh's generic handshake failure.
+    reject_reason: Arc<Mutex<Option<String>>>,
 }
 
 impl client::Handler for Client {
@@ -241,46 +257,56 @@ impl client::Handler for Client {
         &mut self,
         server_public_key: &ssh_key::PublicKey,
     ) -> Result<bool, Self::Error> {
-        Ok(verify_host_key(
-            &self.app,
-            &self.id,
-            &self.host,
-            self.port,
-            server_public_key,
-        ))
+        match verify_host_key(&self.app, &self.id, &self.host, self.port, server_public_key) {
+            Ok(()) => Ok(true),
+            Err(reason) => {
+                *self.reject_reason.lock().unwrap_or_else(|p| p.into_inner()) = Some(reason);
+                Ok(false)
+            }
+        }
     }
 }
 
+/// Decide whether to trust the server's host key. `Ok(())` trusts it; `Err(reason)`
+/// rejects it and carries a user-facing reason (so it isn't lost as a generic
+/// handshake error). Fails closed on anything it cannot positively verify.
 fn verify_host_key(
     app: &AppHandle,
     id: &str,
     host: &str,
     port: u16,
     key: &ssh_key::PublicKey,
-) -> bool {
+) -> Result<(), String> {
     let Some(path) = known_hosts_file() else {
-        return true;
+        // No home directory → nowhere to anchor trust. Fail closed rather than
+        // blindly accept a host key we can never verify against anything.
+        return Err("cannot locate ~/.ssh/known_hosts to verify the host key — refused".into());
     };
+    // Ensure ~/.ssh exists so a first-connect can actually persist the new key.
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
     match check_known_hosts_path(host, port, key, &path) {
-        Ok(true) => true,
+        Ok(true) => Ok(()),
         Ok(false) => {
+            // First time we've seen this host: trust on first use and record it,
+            // surfacing the fingerprint so the user can at least eyeball it.
             let _ = learn_known_hosts_path(host, port, key, &path);
-            emit_status(app, id, "connecting", Some("new host key trusted".into()));
-            true
-        }
-        Err(KeysError::KeyChanged { .. }) => {
+            let fp = key.fingerprint(ssh_key::HashAlg::Sha256);
             emit_status(
                 app,
                 id,
-                "error",
-                Some("host key has CHANGED since last connect — refused (possible MITM)".into()),
+                "connecting",
+                Some(format!("new host key trusted — {fp}")),
             );
-            false
+            Ok(())
         }
-        Err(_) => {
-            let _ = learn_known_hosts_path(host, port, key, &path);
-            true
+        Err(KeysError::KeyChanged { .. }) => {
+            Err("host key has CHANGED since last connect — refused (possible MITM)".into())
         }
+        // An unexpected error (unreadable / corrupt known_hosts, etc.): fail
+        // closed — never silently trust a key we could not verify.
+        Err(e) => Err(format!("could not verify the host key — refused ({e})")),
     }
 }
 

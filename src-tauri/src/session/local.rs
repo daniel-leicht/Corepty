@@ -54,6 +54,14 @@ pub fn spawn(
 ) -> Result<SessionInfo, String> {
     let (program, args, default_title) = resolve_shell(&opts)?;
 
+    let id = opts
+        .id
+        .clone()
+        .unwrap_or_else(|| Uuid::new_v4().to_string());
+    if manager.exists(&id) {
+        return Err(format!("session id already in use: {id}"));
+    }
+
     let mut cmd = CommandBuilder::new(&program);
     for a in &args {
         cmd.arg(a);
@@ -96,10 +104,6 @@ pub fn spawn(
     let master = pair.master;
     let mut killer = child.clone_killer();
 
-    let id = opts
-        .id
-        .clone()
-        .unwrap_or_else(|| Uuid::new_v4().to_string());
     let title = opts.title.clone().unwrap_or(default_title);
     let info = SessionInfo {
         id: id.clone(),
@@ -172,40 +176,32 @@ pub fn spawn(
     Ok(info)
 }
 
-/// Resolves `(program, args, default_title)` for the requested shell.
+/// Resolves `(program, args, default_title)` for the requested shell. Delegates
+/// the program/args lookup to `resolve_program` so the mapping lives in one place.
 fn resolve_shell(opts: &LocalOptions) -> Result<(String, Vec<String>, String), String> {
-    let r = match opts.shell.as_str() {
-        "custom" => {
-            let program = opts
-                .command
-                .clone()
-                .filter(|c| !c.is_empty())
-                .ok_or("custom shell requires a command")?;
-            let title = opts
-                .title
-                .clone()
-                .unwrap_or_else(|| file_stem(&program));
-            (program, opts.args.clone().unwrap_or_default(), title)
-        }
-        "cmd" => (resolve_cmd(), vec![], "Command Prompt".to_string()),
-        "powershell" => (
-            resolve_powershell(),
-            vec!["-NoLogo".to_string()],
-            "PowerShell".to_string(),
-        ),
-        "pwsh" => (
-            resolve_pwsh(),
-            vec!["-NoLogo".to_string()],
-            "PowerShell 7".to_string(),
-        ),
-        "bash" => (
-            resolve_bash(),
-            vec!["-l".to_string(), "-i".to_string()],
-            "Bash".to_string(),
-        ),
-        other => return Err(format!("unknown shell '{other}'")),
-    };
-    Ok(r)
+    if opts.shell == "custom" {
+        let program = opts
+            .command
+            .clone()
+            .filter(|c| !c.is_empty())
+            .ok_or("custom shell requires a command")?;
+        let title = opts.title.clone().unwrap_or_else(|| file_stem(&program));
+        return Ok((program, opts.args.clone().unwrap_or_default(), title));
+    }
+    let (program, args) =
+        resolve_program(&opts.shell).ok_or_else(|| format!("unknown shell '{}'", opts.shell))?;
+    Ok((program, args, shell_title(&opts.shell).to_string()))
+}
+
+/// Human-friendly default tab title for a known shell name.
+fn shell_title(shell: &str) -> &'static str {
+    match shell {
+        "cmd" => "Command Prompt",
+        "powershell" => "PowerShell",
+        "pwsh" => "PowerShell 7",
+        "bash" => "Bash",
+        _ => "Shell",
+    }
 }
 
 /// Resolve `(program, args)` for a known shell name — shared with the elevated

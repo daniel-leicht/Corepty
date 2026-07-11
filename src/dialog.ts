@@ -236,7 +236,7 @@ export class ConnectionDialog {
       name: val("name"),
       kind,
       host,
-      port: parseInt(val("port"), 10) || (kind === "ssh" ? 22 : 23),
+      port: clampPort(parseInt(val("port"), 10), kind),
       username: val("username"),
       authType,
       password: root.querySelector<HTMLInputElement>("[name=password]")?.value ?? "",
@@ -267,6 +267,11 @@ export class ConnectionDialog {
     this.el?.remove();
     this.el = null;
   }
+}
+
+/** Clamp a parsed port to a valid 1–65535, falling back to the protocol default. */
+function clampPort(p: number, kind: "ssh" | "telnet"): number {
+  return Number.isInteger(p) && p >= 1 && p <= 65535 ? p : kind === "ssh" ? 22 : 23;
 }
 
 function folderOptions(folders: Folder[], selected: string | null): string {

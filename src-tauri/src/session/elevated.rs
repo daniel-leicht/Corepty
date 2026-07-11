@@ -45,7 +45,18 @@ pub fn spawn(
     opts: LocalOptions,
 ) -> Result<SessionInfo, String> {
     let id = opts.id.clone().unwrap_or_else(|| Uuid::new_v4().to_string());
+    if manager.exists(&id) {
+        return Err(format!("session id already in use: {id}"));
+    }
     let shell = opts.shell.clone();
+    // The shell name crosses a privilege boundary into the elevated `runas`
+    // command line, so validate it against the known set *here*, before it is
+    // interpolated. This blocks argument injection — a quote in `shell` could
+    // otherwise break out and inject argv into the elevated process — and
+    // rejects anything the broker could not run anyway.
+    if super::local::resolve_program(&shell).is_none() {
+        return Err(format!("'{shell}' cannot be run as administrator"));
+    }
     let cols = opts.cols.max(1);
     let rows = opts.rows.max(1);
     let base = Uuid::new_v4();
@@ -262,9 +273,14 @@ fn wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
-/// Append a diagnostic line to `%TEMP%\corepty-elevated.log`.
+/// Append a diagnostic line to `%TEMP%\corepty-elevated.log` — only when
+/// `COREPTY_DEBUG` is set. Off by default: the log lives in a broadly-readable
+/// location and would otherwise grow without bound.
 fn log(msg: &str) {
     use std::io::Write as _;
+    if std::env::var_os("COREPTY_DEBUG").is_none() {
+        return;
+    }
     let path = std::env::temp_dir().join("corepty-elevated.log");
     if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
         let _ = writeln!(f, "{msg}");

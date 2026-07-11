@@ -58,15 +58,26 @@ pub struct SessionManager {
 }
 
 impl SessionManager {
+    /// Lock the registry, tolerating a poisoned mutex — a panic in one session's
+    /// driver thread must not brick every subsequent IPC call.
+    fn guard(&self) -> std::sync::MutexGuard<'_, HashMap<String, SessionHandle>> {
+        self.sessions.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Whether a session with this id is currently registered. Callers check
+    /// this before spawning so a (buggy or hostile) caller can't reuse a live
+    /// id and hijack its event routing / cleanup.
+    pub fn exists(&self, id: &str) -> bool {
+        self.guard().contains_key(id)
+    }
+
     pub fn register(&self, info: SessionInfo, input_tx: UnboundedSender<SessionInput>) {
-        self.sessions
-            .lock()
-            .unwrap()
+        self.guard()
             .insert(info.id.clone(), SessionHandle { input_tx, info });
     }
 
     pub fn send(&self, id: &str, input: SessionInput) -> Result<(), String> {
-        let map = self.sessions.lock().unwrap();
+        let map = self.guard();
         let handle = map
             .get(id)
             .ok_or_else(|| format!("no such session: {id}"))?;
@@ -77,14 +88,12 @@ impl SessionManager {
     }
 
     pub fn remove(&self, id: &str) {
-        self.sessions.lock().unwrap().remove(id);
+        self.guard().remove(id);
     }
 
     pub fn list(&self) -> Vec<SessionInfo> {
         let mut list: Vec<SessionInfo> = self
-            .sessions
-            .lock()
-            .unwrap()
+            .guard()
             .values()
             .map(|h| h.info.clone())
             .collect();
@@ -94,7 +103,7 @@ impl SessionManager {
 
     #[allow(dead_code)]
     pub fn set_title(&self, id: &str, title: String) {
-        if let Some(h) = self.sessions.lock().unwrap().get_mut(id) {
+        if let Some(h) = self.guard().get_mut(id) {
             h.info.title = title;
         }
     }

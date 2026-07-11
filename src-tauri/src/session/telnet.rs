@@ -33,6 +33,11 @@ const OPT_NAWS: u8 = 31;
 
 const TERM: &[u8] = b"xterm-256color";
 
+/// Cap on a single subnegotiation payload. Real subnegotiations (TTYPE, NAWS…)
+/// are a handful of bytes; this stops a hostile server from growing the buffer
+/// without bound by never sending the closing `IAC SE`.
+const MAX_SUBNEG: usize = 8 * 1024;
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TelnetOptions {
@@ -68,6 +73,9 @@ pub fn connect(
         .id
         .clone()
         .unwrap_or_else(|| Uuid::new_v4().to_string());
+    if manager.exists(&id) {
+        return Err(format!("session id already in use: {id}"));
+    }
     let title = opts
         .title
         .clone()
@@ -325,9 +333,10 @@ impl Telnet {
                 State::SbData => {
                     if b == IAC {
                         self.state = State::SbIac;
-                    } else {
+                    } else if self.sub.len() < MAX_SUBNEG {
                         self.sub.push(b);
                     }
+                    // Overflow bytes are dropped; a well-formed subnegotiation is tiny.
                 }
                 State::SbIac => match b {
                     SE => {

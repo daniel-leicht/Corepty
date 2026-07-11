@@ -143,9 +143,13 @@ fn bridge(pipe_out: &str, pipe_in: &str, shell: &str, cols: u16, rows: u16) -> R
     Ok(())
 }
 
-/// Append a diagnostic line to `%TEMP%\corepty-broker.log`.
+/// Append a diagnostic line to `%TEMP%\corepty-broker.log` — only when
+/// `COREPTY_DEBUG` is set (off by default; see the app-side `log` for why).
 fn log(msg: &str) {
     use std::io::Write as _;
+    if std::env::var_os("COREPTY_DEBUG").is_none() {
+        return;
+    }
     let path = std::env::temp_dir().join("corepty-broker.log");
     if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
         let _ = writeln!(f, "{msg}");

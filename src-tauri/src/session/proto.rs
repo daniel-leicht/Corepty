@@ -15,6 +15,11 @@ pub const TAG_EXIT: u8 = 3;
 /// app→broker: stop the elevated shell now (the tab was closed).
 pub const TAG_CLOSE: u8 = 4;
 
+/// Largest payload we'll accept in one frame. PTY chunks are ≤64 KiB; this cap
+/// guards against a corrupt or hostile length prefix triggering a huge (up to
+/// 4 GiB) allocation before any bytes are even sent.
+pub const MAX_FRAME_LEN: usize = 16 * 1024 * 1024;
+
 pub struct Frame {
     pub tag: u8,
     pub payload: Vec<u8>,
@@ -35,6 +40,12 @@ pub fn read_frame(r: &mut impl Read) -> io::Result<Frame> {
     let mut header = [0u8; 5];
     r.read_exact(&mut header)?;
     let len = u32::from_le_bytes([header[1], header[2], header[3], header[4]]) as usize;
+    if len > MAX_FRAME_LEN {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "frame length exceeds maximum",
+        ));
+    }
     let mut payload = vec![0u8; len];
     r.read_exact(&mut payload)?;
     Ok(Frame {

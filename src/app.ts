@@ -430,7 +430,9 @@ export class App {
     const spec = session.spec;
     if (!spec) return;
     if (session.info) {
-      void api.close(session.info.id).catch(() => {});
+      // Await teardown so the old backend session is gone before we spin up its
+      // replacement — otherwise the close races the new create().
+      await api.close(session.info.id).catch(() => {});
       this.byId.delete(session.info.id);
     }
     session.beginReconnect();
