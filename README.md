@@ -2,6 +2,12 @@
   <img src="docs/icon.png" width="96" alt="CorePTY" />
   <h1>CorePTY</h1>
   <p><em>A slick, modern, cross-platform multi-terminal — local shells, SSH &amp; Telnet in one dark-mode app.</em></p>
+  <p>
+    <a href="https://github.com/daniel-leicht/CorePTY/actions/workflows/release-windows.yml"><img src="https://github.com/daniel-leicht/CorePTY/actions/workflows/release-windows.yml/badge.svg" alt="Build &amp; Release (Windows)" /></a>
+    <a href="https://github.com/daniel-leicht/CorePTY/releases/latest"><img src="https://img.shields.io/github/v/release/daniel-leicht/CorePTY?label=release&amp;color=6e5cff" alt="Latest release" /></a>
+    <a href="https://github.com/daniel-leicht/CorePTY/releases"><img src="https://img.shields.io/github/downloads/daniel-leicht/CorePTY/total?color=34d399" alt="Downloads" /></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue" alt="License: GPL-3.0-or-later" /></a>
+  </p>
 </div>
 
 ![CorePTY](docs/screenshot.png)
@@ -10,6 +16,18 @@ CorePTY is a tabbed terminal client in the MobaXterm / SecureCRT lineage, built 
 **Rust** core and a **web-tech UI** (Tauri + xterm.js). It opens local shells, SSH, and
 Telnet sessions side-by-side, stores credentials in the OS keychain, and authenticates
 SSH with passwords or private keys.
+
+## Download
+
+Prebuilt **Windows (64-bit)** binaries are attached to every release on the
+[**Releases**](https://github.com/daniel-leicht/CorePTY/releases/latest) page, built
+automatically by the [Build &amp; Release workflow](https://github.com/daniel-leicht/CorePTY/actions/workflows/release-windows.yml):
+
+- **`CorePTY_<version>_x64-setup.exe`** — installer (Start-menu shortcut + uninstaller;
+  provisions the WebView2 runtime if it's missing).
+- **`CorePTY_<version>_x64-portable.exe`** — a single self-contained executable, no
+  install. Needs the Microsoft Edge WebView2 runtime (preinstalled on Windows 11 and
+  current Windows 10).
 
 ## Features
 
@@ -112,6 +130,16 @@ CorePTY/
 npm install            # frontend deps
 npm run tauri dev      # run the app with hot reload
 npm run tauri build    # produce a release bundle / installer
+```
+
+**Releases** are cut by pushing a version tag: the
+[Build & Release workflow](.github/workflows/release-windows.yml) builds the Windows
+x64 installer + portable exe on GitHub's runners and attaches them to a new GitHub
+Release. Bump the version in `src-tauri/tauri.conf.json` (and `Cargo.toml` /
+`package.json` to match), then:
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
 ```
 
 ## Security notes
