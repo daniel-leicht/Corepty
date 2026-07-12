@@ -57,6 +57,7 @@ export class App {
   private tabTipTimer: number | null = null;
 
   private stageEl!: HTMLElement;
+  private stageEmptyEl!: HTMLElement;
   private tabsListEl!: HTMLElement;
   private connectionsEl!: HTMLElement;
   private statusEls!: {
@@ -156,6 +157,14 @@ export class App {
               <button class="search-bar__btn" data-act="next" title="Next (Enter)">${icon("chevronDown")}</button>
               <button class="search-bar__btn" data-act="close" title="Close (Esc)">${icon("close")}</button>
             </div>
+            <div class="stage-empty" id="stage-empty" hidden>
+              <div class="stage-empty__card">
+                <span class="stage-empty__icon">${icon("terminal")}</span>
+                <div class="stage-empty__title">No open sessions</div>
+                <div class="stage-empty__hint">Pick a shell on the left, or press Ctrl + Shift + T</div>
+                <button class="btn primary" id="stage-empty-new">${icon("plus")} New tab</button>
+              </div>
+            </div>
           </div>
 
           <div class="statusbar">
@@ -187,6 +196,7 @@ export class App {
     `;
 
     this.stageEl = this.root.querySelector("#stage")!;
+    this.stageEmptyEl = this.root.querySelector("#stage-empty")!;
     this.tabsListEl = this.root.querySelector("#tabs")!;
     this.connectionsEl = this.root.querySelector("#connections")!;
     this.toastEl = this.root.querySelector("#toasts")!;
@@ -237,6 +247,9 @@ export class App {
     this.root
       .querySelector("#open-settings")!
       .addEventListener("click", () => this.settingsDialog.open());
+    this.root
+      .querySelector("#stage-empty-new")!
+      .addEventListener("click", () => void this.newLocal(this.defaultShell()));
 
     this.setupStageInteractions();
     this.setupSearch();
@@ -509,9 +522,9 @@ export class App {
       this.active = null;
       if (next) this.activate(next);
       else {
+        // No tabs left — show the empty state rather than forcing a new session.
         this.renderTabs();
         this.updateStatus();
-        void this.newLocal(this.defaultShell());
       }
     } else {
       this.renderTabs();
@@ -522,6 +535,7 @@ export class App {
 
   private renderTabs(): void {
     this.hideTabTip();
+    this.syncEmptyState();
     // Never rebuild the strip while an inline-rename input is open (it would
     // destroy the field mid-edit, e.g. if the program fires an OSC title).
     if (this.renamingUid) return;
@@ -708,6 +722,11 @@ export class App {
     os.textContent = s.osTitle && s.osTitle !== s.title ? s.osTitle : "";
     dims.textContent = s.alive ? `${s.term.cols} × ${s.term.rows}` : "";
     dot.className = `status-dot ${s.status}`;
+  }
+
+  /** Show the empty-state placeholder only when there are no open tabs. */
+  private syncEmptyState(): void {
+    this.stageEmptyEl?.toggleAttribute("hidden", this.tabs.length > 0);
   }
 
   // ---- launcher popover ---------------------------------------------------

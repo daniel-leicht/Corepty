@@ -86,10 +86,16 @@ pub fn spawn(
         })
         .map_err(|e| format!("failed to open pty: {e}"))?;
 
-    let mut child = pair
-        .slave
-        .spawn_command(cmd)
-        .map_err(|e| format!("failed to launch {program}: {e}"))?;
+    let mut child = pair.slave.spawn_command(cmd).map_err(|e| {
+        // If we never resolved the shell to a real path (still a bare name), the
+        // OS "file not found" is just "it isn't installed / not on PATH" — say so
+        // plainly instead of dumping the raw CreateProcessW command line.
+        if !program.contains('\\') && !program.contains('/') {
+            format!("could not find '{program}' — is it installed and on your PATH?")
+        } else {
+            format!("failed to launch {program}: {e}")
+        }
+    })?;
     // The slave handle is no longer needed once the child owns it.
     drop(pair.slave);
 
@@ -237,6 +243,23 @@ fn win_root() -> String {
         .unwrap_or_else(|_| r"C:\Windows".to_string())
 }
 
+/// Find an executable by name on `PATH`, returning a full launchable path.
+/// ConPTY's `CreateProcessW` won't resolve a bare program name via `PATH`, so a
+/// shell installed outside the well-known locations (scoop, a non-C: drive, or
+/// the Store's WindowsApps execution alias) has to be resolved to a real path
+/// here. Uses `symlink_metadata` so 0-byte reparse-point aliases still match.
+#[cfg(windows)]
+fn which(exe: &str) -> Option<String> {
+    let path = std::env::var_os("PATH")?;
+    for dir in std::env::split_paths(&path) {
+        let candidate = dir.join(exe);
+        if candidate.symlink_metadata().map(|m| !m.is_dir()).unwrap_or(false) {
+            return Some(candidate.to_string_lossy().into_owned());
+        }
+    }
+    None
+}
+
 #[cfg(windows)]
 fn resolve_cmd() -> String {
     let p = format!(r"{}\System32\cmd.exe", win_root());
@@ -272,15 +295,31 @@ fn resolve_powershell() -> String {
 
 #[cfg(windows)]
 fn resolve_pwsh() -> String {
-    for c in [
-        r"C:\Program Files\PowerShell\7\pwsh.exe",
-        r"C:\Program Files\PowerShell\7-preview\pwsh.exe",
-    ] {
-        if Path::new(c).exists() {
-            return c.to_string();
+    // MSI / winget install — honor a non-C: Program Files via the env var.
+    for base in [
+        std::env::var_os("ProgramFiles"),
+        std::env::var_os("ProgramW6432"),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        for sub in [r"PowerShell\7\pwsh.exe", r"PowerShell\7-preview\pwsh.exe"] {
+            let c = Path::new(&base).join(sub);
+            if c.exists() {
+                return c.to_string_lossy().into_owned();
+            }
         }
     }
-    "pwsh.exe".to_string()
+    // Microsoft Store install — the WindowsApps execution alias, a 0-byte reparse
+    // point a plain exists()/metadata() can't always stat.
+    if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+        let alias = Path::new(&local).join(r"Microsoft\WindowsApps\pwsh.exe");
+        if alias.symlink_metadata().is_ok() {
+            return alias.to_string_lossy().into_owned();
+        }
+    }
+    // scoop / custom install — anything named pwsh.exe on PATH.
+    which("pwsh.exe").unwrap_or_else(|| "pwsh.exe".to_string())
 }
 
 #[cfg(windows)]
@@ -297,7 +336,7 @@ fn resolve_bash() -> String {
             return c.clone();
         }
     }
-    "bash.exe".to_string()
+    which("bash.exe").unwrap_or_else(|| "bash.exe".to_string())
 }
 
 #[cfg(not(windows))]
