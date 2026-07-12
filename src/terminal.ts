@@ -3,6 +3,7 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { SearchAddon } from "@xterm/addon-search";
+import { WebglAddon } from "@xterm/addon-webgl";
 import { api, type SessionInfo, type SessionKind } from "./ipc";
 import { icon } from "./icons";
 import { ringBell, termOptions } from "./settings";
@@ -103,6 +104,25 @@ export class TerminalSession {
     if (this.opened) return;
     this.term.open(this.element);
     this.opened = true;
+    // Load the WebGL renderer *after* open() (it needs the screen element). It
+    // draws every cell on a fixed integer grid, which eliminates the sub-pixel
+    // column drift the DOM renderer suffers with webfonts whose glyph advance
+    // isn't a whole number of pixels — most visible with VT323 (BBS theme) and
+    // heavy syntax highlighting. Falls back to the DOM renderer if WebGL is
+    // unavailable or its GPU context is lost.
+    try {
+      const webgl = new WebglAddon();
+      webgl.onContextLoss(() => {
+        try {
+          webgl.dispose();
+        } catch {
+          /* ignore — xterm reverts to the DOM renderer */
+        }
+      });
+      this.term.loadAddon(webgl);
+    } catch {
+      /* WebGL unavailable — keep the DOM renderer. */
+    }
     this.fit();
   }
 
